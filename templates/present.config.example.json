@@ -1,0 +1,17 @@
+{
+  "_說明": "複製成工作資料夾的 present.config.json。憑證不要寫在這裡：放 env_file 指向的檔案或環境變數。",
+  "mode": "runtime",
+  "base": "https://demo.ai-go.app",
+  "slug": "your-app-slug",
+  "preview_url": "https://developer.ai-go.app/preview/<module_id>?v=<version_id>",
+  "env_file": "~/.aigo/.env",
+  "viewport": { "w": 1600, "h": 900, "dsf": 2 },
+  "out": "shots",
+  "routes": [
+    ["/", "overview"],
+    ["/messages", "messages"],
+    ["/settings", "settings"]
+  ],
+  "title": "XX 後台操作手冊",
+  "brand": "#C2410C"
+}

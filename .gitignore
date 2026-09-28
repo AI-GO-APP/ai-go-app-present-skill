@@ -1,0 +1,13 @@
+node_modules/
+__pycache__/
+*.pyc
+# 憑證與工作產物一律不進 repo
+*.env
+.env*
+state_backup.*.json
+present.config.json
+shots/
+disc/
+preview/
+*.pdf
+deck.html
