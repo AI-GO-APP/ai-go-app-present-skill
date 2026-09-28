@@ -95,10 +95,14 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 3. **一個流程一頁**；**只有大功能用全頁截圖＋圖解**；操作過程只截局部。
 4. **參數頁的核心是「設定（目前值）｜情境 → 結果」**：改成什麼 → 遇到什麼情況 → 會發生什麼（references/writing-guide.md）。
 5. **每句行為描述都要有依據**（程式碼／線上設定／實測）；前端說明可能過時，以後端為準。
-6. **截圖就是 UI 驗收**：看到異常先當 bug 查，修好照 app 發布規則上線再重拍。
+6. **截圖就是驗收**：異常先照 `workflow.md` P4 的確認清單查；確認是 bug 就用 aigo-builder 修好上線、
+   重拍受影響的群組、繼續截圖計畫，**不必徵詢**；只有改資料結構、改對客人的外送行為、修法不確定、
+   平台問題四種例外才停下來問。
 7. **截圖的副作用要還原**：未讀、模式、開關；會對外送出的操作只對自己的測試帳號做。
 8. **密鑰零容忍**：每張截圖檢查；憑證只放本機。
 9. **品牌不改**：色彩、字體、版型照 AI GO 母版；App 自己的品牌色只出現在截圖裡。
+10. **只寫功能與操作，不插播**：不寫開發歷史、設計理由、技術架構、比較與評價、查證依據、製作過程
+    （references/writing-guide.md）。介紹只在封面一句話與導讀頁。
 
 ## 檔案
 
@@ -111,6 +115,8 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框截圖＋圖解、步驟、表格、提示框、封面押製作日、分隔頁、封底）與檔名規則 |
 | `scripts/render.mjs` | HTML → 同名 PDF ＋ 每頁 PNG ＋ 溢出／擠壓檢查 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
+| `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
+| `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
 | `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本 |
 | `references/workflow.md` | 七階段與四道關卡 |
 | `references/brand.md` | AI GO 品牌規範（色彩、字體、幾何、固定頁、截圖框、檔名） |
