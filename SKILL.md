@@ -12,6 +12,9 @@ description: >
 把一支 AI GO custom app 做成「讀得懂、照著做得出來」的 16:9 閱讀式簡報 PDF：
 真實後台截圖、大功能全頁圖解、一個流程一頁、每個設定都講清楚「改了在什麼情境會怎樣」。
 
+**樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、每頁左緣品牌藍條、
+全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
+
 ## 何時用
 
 - 「幫 {app} 做一份操作手冊／教學文件／交接簡報，要附截圖」
@@ -50,7 +53,8 @@ node <skill>/scripts/shoot.mjs --config present.config.json [群組…]      # P
 python <skill>/scripts/contact_sheet.py "shots/*.png" --out disc/sheet   # G2：逐張看
 python <skill>/scripts/prep_state.py restore --table …                   # 還原
 cp <skill>/templates/deck_content.example.py deck_content.py             # P5：改 SKILL 路徑後照大綱寫
-python deck_content.py && node <skill>/scripts/render.mjs --html deck.html --pdf 手冊.pdf --png preview
+python deck_content.py                                                   # →「AI GO 租戶名 App名 YYYYMMDD.html」
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label   # G4
 ```
 
@@ -64,6 +68,7 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 6. **截圖就是 UI 驗收**：看到異常先當 bug 查，修好照 app 發布規則上線再重拍。
 7. **截圖的副作用要還原**：未讀、模式、開關；會對外送出的操作只對自己的測試帳號做。
 8. **密鑰零容忍**：每張截圖檢查；憑證只放本機。
+9. **品牌不改**：色彩、字體、版型照 AI GO 母版；App 自己的品牌色只出現在截圖裡。
 
 ## 檔案
 
@@ -73,11 +78,12 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/discover.mjs` | 探勘：每頁小圖＋分頁／按鈕／欄位／placeholder 清單 |
 | `scripts/shoot.mjs` | 依 `shots.plan.mjs` 分群組截圖 |
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
-| `scripts/deck_kit.py` ＋ `deck.css` | 簡報元件（圖解截圖、步驟、表格、提示框、封面、分隔頁） |
-| `scripts/render.mjs` | HTML → PDF ＋ 每頁 PNG ＋ 溢出檢查 |
+| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框截圖＋圖解、步驟、表格、提示框、封面押製作日、分隔頁、封底）與檔名規則 |
+| `scripts/render.mjs` | HTML → 同名 PDF ＋ 每頁 PNG ＋ 溢出／擠壓檢查 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本 |
 | `references/workflow.md` | 七階段與四道關卡 |
+| `references/brand.md` | AI GO 品牌規範（色彩、字體、幾何、固定頁、截圖框、檔名） |
 | `references/writing-guide.md` | 語氣、頁型、「情境 → 結果」寫法、說法查證 |
 | `references/screenshot-guide.md` | 截圖種類、spec 寫法、12 個技巧 |
 | `references/layout-guide.md` | 畫布、圖片尺寸、字級、G4 檢查表 |

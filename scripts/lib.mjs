@@ -161,7 +161,7 @@ export async function createSession(cfg, { dsf } = {}) {
       ms.push({ n: m.n, x: r.x - clip.x, y: r.y - clip.y, w: r.w, h: r.h });
     }
     await p.screenshot({ path: path.join(cfg.out, `${name}.png`), clip: { x: clip.x, y: clip.y, width: clip.w, height: clip.h } });
-    MAN[name] = { w: Math.round(clip.w), h: Math.round(clip.h), marks: ms, note };
+    MAN[name] = { w: Math.round(clip.w), h: Math.round(clip.h), full: !!(full || !specs), marks: ms, note };
     save();
     console.log("OK", name, Math.round(clip.w) + "x" + Math.round(clip.h), ms.length ? ms.length + " marks" : "");
   }
@@ -171,5 +171,15 @@ export async function createSession(cfg, { dsf } = {}) {
   }
   const T = (text, sel = "button") => ({ sel, text });
   const F = (starts, extra = {}) => ({ sel: ".field", starts, ...extra });
-  return { p, browser, cfg, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, step, sleep, T, F, ROOT, close: () => browser.close() };
+  /** 租戶名（/auth/me 的 tenant_name；preview 模式或設定檔有填就用設定檔）與 App 名（頁面標題去掉「 — AI GO」） */
+  async function meta() {
+    let tenant = cfg.tenant || "";
+    if (!tenant && cfg.mode !== "preview") {
+      try { const r = await fetch(`${cfg.base}/api/v1/auth/me`, { headers: { Authorization: "Bearer " + tok } }); tenant = (await r.json()).tenant_name || ""; } catch { /* 留空 */ }
+    }
+    const title = await p.title();
+    const app = cfg.app_name || title.replace(/\s*[—–-]\s*AI GO\s*$/, "").trim();
+    return { tenant, app, title };
+  }
+  return { p, browser, cfg, meta, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, step, sleep, T, F, ROOT, close: () => browser.close() };
 }

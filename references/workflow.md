@@ -71,18 +71,20 @@ P5 寫內容 ══G3 說法查證══► P6 排版輸出 ══G4 逐頁目�
 ## P6 排版輸出 → G4
 
 ```bash
-python deck_content.py
-node <skill>/scripts/render.mjs --html deck.html --pdf 手冊.pdf --png preview
-python <skill>/scripts/contact_sheet.py preview/p*.png --rows 2 --out disc/pv --no-label
+python deck_content.py                       # →「AI GO 租戶名 App名 YYYYMMDD.html」
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF
+python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label
 ```
 
-- `render.mjs` 會列出超出下緣／右緣的頁；**沒列出不代表好看**
+- 樣式固定為 AI GO 品牌 B2B 母版（`brand.md`）；檔名與封面製作日自動產生
+
+- `render.mjs` 會列出超出下緣、超出右緣、擠壓重疊的頁；**沒列出不代表好看**
 - **G4 逐頁目視**：看總表找問題，再開單頁大圖確認（`layout-guide.md` 的檢查表）
 - 修 → 重跑，直到沒有溢出、沒有擠壓、沒有孤字標題
 
 ## P7 交付與收尾
 
-- 用 SendUserFile 把 PDF 給使用者（display: attach）
+- 用 SendUserFile 把 PDF 給使用者（display: attach）；檔名必須是「AI GO 租戶名 App名 YYYYMMDD.pdf」
 - 截圖時修的 bug：照該 app 的發布規則走（發布 → PR → merge），並寫進該 app 的評估紀錄
 - 還原資料狀態（`prep_state.py restore`／`diff` 確認）
 - PDF 是二進位大檔，**不要預設放進程式碼 repo**；問使用者要不要放 `docs/`
