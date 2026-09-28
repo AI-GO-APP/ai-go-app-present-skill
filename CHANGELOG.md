@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0 — 2026-09-28
+
+📣 **0.2.0 以前的安裝沒有自動更新**：請手動更新一次（git 安裝在 skill 目錄執行
+`git pull`；複製式安裝重新下載），之後的新版就會自動同步。
+
+### Skill 自我更新機制（移植自 aigo-builder）
+
+- 新增 `scripts/check_update.py`（零相依）：比對本地與遠端 `VERSION`，遠端較新時**不詢問、
+  直接把本機所有已註冊安裝強制同步到遠端 main**（git：`fetch` → `reset --hard` → `clean -fd`；
+  複製式：`main.zip` 鏡像覆蓋）。本地版本高於遠端或不在 main／master 的 git 副本視為開發副本，略過
+- 檢查頻率：遠端 `VERSION` 快取 3 小時、版本比對每次都做、同步失敗 3 小時內不重試；
+  沒新版時靜默
+- 狀態檔 `~/.aigo/present_update_check.json`，與 aigo-builder 分開（共用會被 builder 的 main 覆蓋）
+- 同步後比對 npm 依賴（`package.json` 依賴欄位＋`package-lock.json` 套件清單，排除版本號），
+  有變就要求執行 `npm install`
+- SKILL.md 新增「Phase -1：Skill 自我更新」；README 新增「保持更新」
+- 新增 SessionStart hook 範本 `resources/hooks/`（Claude Code、Codex）
+- 新增 `tests/test_check_update.py`（29 項，零相依，Python 3.9＋）
+
 ## 0.2.0 — 2026-09-28
 
 - **樣式統一為 AI GO 品牌 B2B 母版**（`references/brand.md`）：品牌藍 #1F80FF、Inter＋Noto Sans TC、每頁左緣藍條、

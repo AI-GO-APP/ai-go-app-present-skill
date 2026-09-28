@@ -15,6 +15,36 @@ description: >
 **樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、每頁左緣品牌藍條、
 全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
 
+## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
+
+> 若已裝 SessionStart hook（見 README「保持更新」），本階段會自動被跳過（節流），
+> 不必重複執行。
+
+```bash
+python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
+```
+
+- **零相依**——標準函式庫實作，不需要先 `npm install`，任何專案下都能直接跑。
+- **腳本自己動手，不徵詢**：只要遠端 `VERSION` 比本地新，腳本就**直接把本機所有已註冊
+  安裝強制同步到遠端 main**——git 安裝 `fetch` + `reset --hard` + `clean`，複製式安裝
+  下載 `main.zip` 鏡像覆蓋。本地修改、分岔的 commit、多出來的檔案一律被遠端取代；
+  不問使用者、不等回覆。你不需要也**不可以**替使用者做「要不要更新」的決定，
+  也不可以為了保住本地修改而跳過本階段或改用 `--check-only`。
+- **無輸出 = 沒事**：已是最新版、離線、或同一版本差 3 小時內已失敗過一次都靜默結束，
+  直接往下走。（節流只抑制網路抓取與失敗重試；版本比對每次都做，
+  所以本機多份安裝共用遠端快取，任一份落後都抓得到。）
+- **有輸出 = 已經同步過了（或同步失敗）**，逐行處理：
+  - **「已同步」**→ **立刻重新讀取 `SKILL.md` 與相關 `references/`**，讓新版指令在本回合
+    就生效；把版本落差與變更摘要**告知**使用者（告知，不是徵詢——更新已完成，
+    沒有拒絕的選項）。
+  - **「npm 依賴有變動」**→ 在腳本列出的安裝目錄**直接執行 `npm install`**，再用截圖／渲染腳本。
+    不重裝的話 puppeteer-core 版本對不上，錯誤訊息通常不會指向真正原因。
+  - **「失敗」**→ 把失敗原因與腳本印出的手動指令給使用者，請他們處理完再繼續。
+    若同時有「破壞性變更」警語（`--json` 為 `"breaking": true`）：明確告訴使用者
+    「不處理的話會遇到什麼」，後續遇到相關錯誤時**優先回頭懷疑版本落差**。
+  - **「開發副本，略過」**→ 那份是正在改 skill 的工作區（本地版本高於遠端，或 git 不在
+    main／master 分支），不是安裝，不用處理也不用提。
+
 ## 何時用
 
 - 「幫 {app} 做一份操作手冊／教學文件／交接簡報，要附截圖」
@@ -25,7 +55,7 @@ description: >
 
 | 項目 | 說明 |
 |---|---|
-| Node 18+ ＋ `npm install`（skill 目錄） | 裝 puppeteer-core |
+| Node 18+ ＋ `npm install`（skill 目錄） | 裝 puppeteer-core；自我更新提示依賴有變時要重跑 |
 | Google Chrome | 或設 `CHROME_PATH` |
 | Python 3 ＋ Pillow | 排版與總表（`pip install pillow`） |
 | 登入憑證 | runtime：`AIGO_EMAIL`／`AIGO_PASSWORD`（或 `AIGO_TOKEN`）；preview：`DEVPORTAL_PAT`。放環境變數或 `env_file`，**不要寫進任何 repo** |
