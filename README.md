@@ -77,6 +77,8 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 
 ### 維護者注意
 
+- **所有變更一律走 PR**：功能分支 → PR → merge 進 main，不直接推 main（比照 aigo-builder；
+  不設分支保護，靠這條慣例）。main 一有新版，所有安裝都會自動同步，合併前請確認內容可發布。
 - 改動 skill 內容後要同步 bump `VERSION`（與 `package.json` 的 `version`），並在
   `CHANGELOG.md` 補一節，標題格式固定為 `## <版本> — <日期>`，否則使用者端不會收到更新。
 - 舊版腳本只會讀到新版那一節的**前 20 行**：破壞性變更的警語要寫在該節最前面，
