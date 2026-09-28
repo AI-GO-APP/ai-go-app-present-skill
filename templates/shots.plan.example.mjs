@@ -53,6 +53,18 @@ export default {
     });
   },
 
+  // 2.5 瀏覽器以外的畫面（references/screenshot-guide.md「瀏覽器以外的畫面」）
+  //     - 終端指令不拍：deck_content.py 用 d.term() 渲染
+  //     - 桌面 app 視窗：desktop_shot.py 依標題抓，進同一份 shots.json，簡報自動包視窗框
+  //     - 那個程式必須在這台機器上開著；先 `python <skill>/scripts/desktop_shot.py --list` 看標題
+  desktop: async (s) => {
+    await s.step("line-desktop", () => s.desktop("line-desktop", { title: "LINE", delay: 1.5, marks: [
+      { n: 1, x: 20, y: 60, w: 260, h: 400 },   // 相對截圖左上角的實體像素
+    ] }));
+    // 需要在桌面 app 裡操作才拍得到的狀態（打開選單…）：用 agent 的桌面操作工具存圖，再裁進管線
+    // await s.desktop("line-menu", { from: "disc/manual/line-menu.png", region: "400,200,520,360" });
+  },
+
   // 3. 設定頁：逐欄局部截圖（F(標籤開頭) 抓 .field）
   settings: async (s) => {
     await s.go("/settings", 3500);

@@ -93,6 +93,8 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 1. **先問再做**：對象、重心、形式、資料（references/prompts.md §1）。使用者說過的不再問。
 2. **預設比重**：核心工作流程 ＞ 可控制的參數與提示詞 ＞ 其他頁面。
 3. **一個流程一頁**；**只有大功能用全頁截圖＋圖解**；操作過程只截局部。
+   瀏覽器以外的畫面：終端指令用 `d.term()` 渲染不截圖；桌面程式用 `desktop_shot.py` 截視窗；
+   agent 的桌面操作工具只當退路（references/screenshot-guide.md）。
 4. **參數頁的核心是「設定（目前值）｜情境 → 結果」**：改成什麼 → 遇到什麼情況 → 會發生什麼（references/writing-guide.md）。
 5. **每句行為描述都要有依據**（程式碼／線上設定／實測）；前端說明可能過時，以後端為準。
 6. **截圖就是驗收**：異常先照 `workflow.md` P4 的確認清單查；確認是 bug 就用 aigo-builder 修好上線、
@@ -112,7 +114,8 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/discover.mjs` | 探勘：每頁小圖＋分頁／按鈕／欄位／placeholder 清單 |
 | `scripts/shoot.mjs` | 依 `shots.plan.mjs` 分群組截圖 |
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
-| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框截圖＋圖解、步驟、表格、提示框、封面押製作日、分隔頁、封底）與檔名規則 |
+| `scripts/desktop_shot.py` | 瀏覽器以外的畫面：桌面視窗／螢幕／區域截圖，進同一份 `shots.json`（Windows 零相依；macOS／Linux 盡力） |
+| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、分隔頁、封底）與檔名規則 |
 | `scripts/render.mjs` | HTML → 同名 PDF ＋ 每頁 PNG ＋ 溢出／擠壓檢查 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |

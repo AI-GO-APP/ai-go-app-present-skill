@@ -62,11 +62,19 @@ class Deck:
     # ───────────── 元件 ─────────────
     def shot(self, name, maxw, maxh=None, marks=True, cls="", frame=None):
         """截圖，依 maxw／maxh 等比縮放；marks=True 疊上 shots.json 記的編號框。
-        全頁截圖自動包深色瀏覽器框（品牌規則：產品截圖不裸貼）；frame=True/False 可強制。"""
+        全頁截圖自動包深色瀏覽器框（品牌規則：產品截圖不裸貼）；desktop_shot.py 拍的整個桌面視窗／螢幕
+        （shots.json 的 kind="desktop" 且 full）自動包視窗框（同樣的深色列＋視窗標題）；
+        --region／--from 裁的局部跟瀏覽器局部一樣不包框。
+        frame：None 自動｜True／"browser" 瀏覽器框｜"window" 視窗框｜False 不包。"""
         if name not in self.man:
             raise KeyError("shots.json 沒有這張截圖：" + name)
         m = self.man[name]
-        framed = m.get("full", m["w"] >= 1600 and m["h"] >= 900) if frame is None else frame
+        if frame is None:
+            full = m.get("full", m["w"] >= 1600 and m["h"] >= 900)
+            frame = ("window" if m.get("kind") == "desktop" else "browser") if full else False
+        if frame is True:
+            frame = "browser"
+        framed = bool(frame)
         bar = 26 if framed else 0
         s = maxw / m["w"]
         if maxh:
@@ -81,16 +89,37 @@ class Deck:
                        f'height:{max(h, 8):.0f}px"><b>{k["n"]}</b></div>')
         img = f'<div class="img" style="height:{H}px"><img src="{self._src}/{name}.png" alt="">{mk}</div>'
         if framed:
-            return (f'<div class="shot framed {cls}" style="width:{W}px;height:{H + bar}px">'
-                    f'<div class="bar"><i></i><i></i><i></i></div>{img}</div>')
+            title = f'<span>{escape(m.get("title", ""))}</span>' if frame == "window" and m.get("title") else ""
+            return (f'<div class="shot framed {frame} {cls}" style="width:{W}px;height:{H + bar}px">'
+                    f'<div class="bar"><i></i><i></i><i></i>{title}</div>{img}</div>')
         return f'<div class="shot {cls}" style="width:{W}px;height:{H}px">{img}</div>'
+
+    @staticmethod
+    def term(commands, title="", width=None, maxh=None, redact=()):
+        """終端框：把指令與實際輸出渲染成深色終端（不要截真實終端畫面——會帶進路徑、token、無關視窗）。
+        commands：[(指令, 輸出)]，輸出可為空字串；或單一字串＝只有指令。
+        redact：要遮掉的字串（token、密碼、Email），一律換成 ••••。"""
+        if isinstance(commands, str):
+            commands = [(commands, "")]
+        blocks = []
+        for cmd, out in commands:
+            cmd, out = str(cmd), str(out or "")
+            for secret in redact:
+                if secret:
+                    cmd, out = cmd.replace(secret, "••••"), out.replace(secret, "••••")
+            blocks.append(f'<div class="cmd"><span class="ps">$</span>{escape(cmd)}</div>'
+                          + (f'<pre>{escape(out)}</pre>' if out else ""))
+        style = (f"width:{width}px;" if width else "") + (f"max-height:{maxh}px;" if maxh else "")
+        head = f'<span>{escape(title)}</span>' if title else ""
+        return (f'<div class="term" style="{style}"><div class="bar"><i></i><i></i><i></i>{head}</div>'
+                f'<div class="body">{"".join(blocks)}</div></div>')
 
     @staticmethod
     def cap(text):
         return f'<div class="cap">{text}</div>'
 
-    def fig(self, name, maxw, maxh=None, caption="", marks=True):
-        return f'<figure>{self.shot(name, maxw, maxh, marks)}{self.cap(caption) if caption else ""}</figure>'
+    def fig(self, name, maxw, maxh=None, caption="", marks=True, frame=None):
+        return f'<figure>{self.shot(name, maxw, maxh, marks, frame=frame)}{self.cap(caption) if caption else ""}</figure>'
 
     @staticmethod
     def legend(items, cls="side"):

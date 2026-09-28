@@ -169,6 +169,27 @@ export async function createSession(cfg, { dsf } = {}) {
   async function step(name, fn) {
     try { await fn(); } catch (e) { console.log("FAIL", name, String(e.message || e).slice(0, 200)); await p.screenshot({ path: path.join(cfg.out, `_fail-${name}.png`) }); }
   }
+  /**
+   * 瀏覽器以外的畫面：交給 scripts/desktop_shot.py（桌面視窗／整個螢幕／區域），寫進同一份 shots.json。
+   * opts：{ title, screen, region: "x,y,w,h", from, marks: [{n, x, y, w, h}], delay, note, noFocus }
+   * 終端指令不要拍：用 deck_kit 的 Deck.term() 渲染。
+   */
+  async function desktop(name, { title, screen, region, from, marks = [], delay, note, noFocus } = {}) {
+    const args = [path.join(SKILL_DIR, "scripts", "desktop_shot.py"), "--name", name, "--out", cfg.out];
+    if (title) args.push("--title", title);
+    if (screen) args.push("--screen");
+    if (from) args.push("--from", from);
+    if (region) args.push("--region", region);
+    if (delay != null) args.push("--delay", String(delay));
+    if (note) args.push("--note", note);
+    if (noFocus) args.push("--no-focus");
+    for (const m of marks) args.push("--mark", `${m.n}:${m.x},${m.y},${m.w},${m.h}`);
+    const { spawnSync } = await import("node:child_process");
+    const r = spawnSync(cfg.python || (process.platform === "win32" ? "python" : "python3"), args, { encoding: "utf8" });
+    if (r.status !== 0) throw new Error("desktop_shot 失敗：" + (r.stderr || r.stdout || "").trim().slice(0, 300));
+    Object.assign(MAN, JSON.parse(fs.readFileSync(MANF, "utf8")));  // 它改了檔案，記憶體要跟上，否則下一次 save() 會蓋掉
+    console.log((r.stdout || "").trim());
+  }
   const T = (text, sel = "button") => ({ sel, text });
   const F = (starts, extra = {}) => ({ sel: ".field", starts, ...extra });
   /** 租戶名（/auth/me 的 tenant_name；preview 模式或設定檔有填就用設定檔）與 App 名（頁面標題去掉「 — AI GO」） */
@@ -181,5 +202,5 @@ export async function createSession(cfg, { dsf } = {}) {
     const app = cfg.app_name || title.replace(/\s*[—–-]\s*AI GO\s*$/, "").trim();
     return { tenant, app, title };
   }
-  return { p, browser, cfg, meta, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, step, sleep, T, F, ROOT, close: () => browser.close() };
+  return { p, browser, cfg, meta, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, desktop, step, sleep, T, F, ROOT, close: () => browser.close() };
 }
