@@ -40,7 +40,9 @@ const over = await p.evaluate(() => [...document.querySelectorAll(".slide")].map
   const els = [...c.querySelectorAll("*")].filter((e) => e.getClientRects().length);
   const bad = els.filter((e) => e.getBoundingClientRect().bottom > bottom + 1).length;
   const wide = els.filter((e) => e.getBoundingClientRect().right > right + 1).length;
-  return bad || wide ? `第 ${i + 1} 頁：超出下緣 ${bad}、超出右緣 ${wide}` : null;
+  // 擠壓：flex 容器被壓得比內容矮 → 內容溢出、和下一塊重疊（下緣檢查抓不到）
+  const squeezed = [c, ...c.querySelectorAll(".row, .grow, .content > *")].filter((e) => e.scrollHeight > e.clientHeight + 3 && getComputedStyle(e).overflow === "visible").length;
+  return bad || wide || squeezed ? `第 ${i + 1} 頁：超出下緣 ${bad}、超出右緣 ${wide}、擠壓重疊 ${squeezed}` : null;
 }).filter(Boolean));
 console.log(over.length ? over.join("\n") : "版面檢查：沒有超出");
 

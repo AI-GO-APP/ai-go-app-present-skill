@@ -12,6 +12,7 @@
     ["/messages", "messages"],
     ["/settings", "settings"]
   ],
-  "title": "XX 後台操作手冊",
-  "brand": "#C2410C"
+  "tenant": "",
+  "app_name": "",
+  "_tenant說明": "tenant／app_name 留空＝自動取（租戶名來自 /auth/me，App 名來自頁面標題）；preview 模式取不到租戶名，要手填"
 }

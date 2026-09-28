@@ -28,5 +28,9 @@ for (const [route, name] of cfg.routes || [["/", "home"]]) {
   console.log("OK", name, route);
 }
 fs.writeFileSync(path.join(OUT, "ui.json"), JSON.stringify(out, null, 1));
+const meta = await s.meta();
+meta.made = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);   // 台灣日期
+fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta, null, 1));
+console.log("租戶：" + (meta.tenant || "（取不到，請在設定檔填 tenant）") + "　App：" + meta.app);
 await s.close();
 console.log("→", path.join(OUT, "ui.json"));
