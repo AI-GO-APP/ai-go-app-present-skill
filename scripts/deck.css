@@ -64,6 +64,20 @@ figure:last-child { margin-bottom: 0; }
 .shot.framed .bar { height: 26px; display: flex; align-items: center; gap: 7px; padding-left: 14px; }
 .shot.framed .bar i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, .28); }
 .shot.framed img { border-radius: 0 0 12px 12px; }
+/* 視窗框（desktop_shot.py 拍的桌面 app）：同一條深色列，多視窗標題 */
+.shot.framed .bar span { margin-left: 8px; font-size: 12px; color: var(--on-dark-2); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ───── 終端框（Deck.term）：指令與輸出用渲染的，不截真實終端 ───── */
+.term { flex: none; background: var(--panel); border-radius: 12px; overflow: hidden; color: var(--on-dark); }
+.term .bar { height: 26px; display: flex; align-items: center; gap: 7px; padding-left: 14px; background: var(--panel-2); }
+.term .bar i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, .28); }
+.term .bar span { margin-left: 8px; font-size: 12px; color: var(--on-dark-2); letter-spacing: .02em; }
+.term .body { padding: 14px 18px 16px; font-family: Consolas, "SF Mono", "Cascadia Mono", monospace; font-size: 14.5px; line-height: 1.6; }
+.term .cmd { color: #fff; font-weight: 700; white-space: pre-wrap; word-break: break-all; }
+.term .cmd + .cmd { margin-top: 10px; }
+.term .ps { color: var(--cyan); margin-right: 10px; font-weight: 700; }
+.term pre { margin: 4px 0 10px; color: var(--on-dark-2); white-space: pre-wrap; word-break: break-all; font: inherit; }
+.term pre:last-child { margin-bottom: 0; }
 .mk { position: absolute; border: 3px solid var(--mk); border-radius: 8px; background: var(--mk-soft); }
 .mk b { position: absolute; top: -14px; left: -14px; width: 28px; height: 28px; border-radius: 50%; background: var(--mk); color: #fff;
   font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px #fff; font-feature-settings: "tnum"; }

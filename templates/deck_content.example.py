@@ -48,6 +48,17 @@ d.slide(PA, "流程：XX", "從哪裡開始、到哪裡結束，一頁看完。"
     d.col(S([("第一步", "做什麼、看哪裡"), ("第二步", "按哪個按鈕"), ("第三步", "完成後的狀態")]), 600),
     d.col(d.fig("list-head", 520, caption="② 的畫面") + d.fig("human-mode", 700, caption="③ 的畫面"))))
 
+# ── 頁型 5b：指令頁（終端框；不截真實終端）── 指令與「實際」輸出；密鑰放 redact 一律遮成 ••••
+d.slide(P0, "前置：安裝與登入", "只做一次。看到最後一行代表成功。", d.row(
+    d.col(d.term([("npm install", "added 25 packages in 2s"),
+                  ("python scripts/aigo_auth.py login", "登入成功：{租戶名}")], title="skill 目錄", redact=[]), 760),
+    d.col(S([("在 skill 目錄執行", "只需要做一次"), ("看到「登入成功」", "代表帳密正確")]) + N("<b>密碼不要貼進對話</b>，放環境變數。", "warn"))))
+
+# ── 頁型 5c：桌面視窗（desktop_shot.py 拍的；shots.json kind=desktop → 自動包視窗框）──
+d.slide(P0, "串接：LINE 桌面版設定", "在 LINE 桌面版完成這三步，回到後台就會看到渠道上線。", d.row(
+    d.fig("line-desktop", 900, caption="LINE 桌面版"),
+    d.legend([(1, "設定入口", "左下角齒輪"), (2, "要填的欄位", "貼上後台給的網址")])), bg="soft")
+
 # ── 頁型 6：狀態機（三種模式）── 用 HTML 方塊＋箭頭，樣式見 deck.css 的 .modes
 d.slide(PA, "三種狀態：誰在處理", "同一時間只有一種狀態。", """
 <div class="modes">

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 — 2026-09-29
+
+### 瀏覽器以外的畫面：終端框、桌面視窗截圖、桌面操作工具退路
+
+- **`Deck.term()` 終端框**：終端指令不截圖，把指令與實際輸出渲染成品牌深色終端（`redact` 遮密鑰）；
+  新頁型「指令」
+- **`scripts/desktop_shot.py`**（新，標準函式庫）：依視窗標題／整個螢幕／區域截圖，寫進同一份 `shots.json`
+  （`kind: "desktop"`），整個視窗／螢幕 `Deck.shot()` 自動包**視窗框**（深色列＋視窗標題），`--region`／`--from`
+  裁的局部不包框；`fig()` 新增 `frame` 參數。Windows 用 Win32／GDI 零相依、
+  已處理 DPI；macOS 走 osascript＋screencapture、Linux 走 xdotool＋import，盡力支援；`--from` 裁既有圖
+  （agent 桌面操作工具存下來的）需要 Pillow；`--list` 列可見視窗
+- **`s.desktop(name, opts)`**：截圖計畫裡直接呼叫，桌面截圖與瀏覽器截圖同一份計畫、可單獨重跑
+- `screenshot-guide.md` 新節「瀏覽器以外的畫面」：決策表（能渲染就不截圖、能腳本就不手動、手動只當退路）、
+  桌面截圖的 G2 額外檢查、桌面操作工具的限制；`prompts.md` §1 加問「有沒有瀏覽器以外的步驟」；
+  `pitfalls.md` 補終端入鏡、通知入鏡、標題找不到、DPI；範本補指令頁、桌面視窗頁、desktop 群組
+- `tests/test_desktop_shot.py`：PNG 編碼、參數解析、manifest 併寫、deck_kit 視窗框與終端框；Windows 上另測真實擷取
+
 ## 0.4.0 — 2026-09-29
 
 **行為變更**：截圖時發現 app 的 bug，過確認清單後**直接修好上線、重拍、繼續**，不再徵詢；
