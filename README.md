@@ -13,7 +13,7 @@
 git clone https://github.com/AI-GO-APP/ai-go-app-present-skill.git .claude/skills/ai-go-app-present
 cd .claude/skills/ai-go-app-present
 npm install            # puppeteer-core
-pip install pillow     # 總表
+pip install pillow pypdf   # 總表、PDF 壓縮（有 Ghostscript 會優先用它，選配）
 ```
 
 - Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」）
@@ -105,7 +105,8 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 
 - 樣式：AI GO 品牌 B2B 母版（深底封面押製作日、每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底）
 - 檔名：`AI GO 租戶名 App名 YYYYMMDD.pdf`（租戶名與 App 名自動取得）
-- 封面 → 導讀 → 後台地圖 → 前置設定
+- 獨立檔案、小於 20 MB：圖片與字型全部內嵌；超過自動整份壓縮，壓到底仍超過會先問你要不要照樣交付
+- 封面 → **目錄**（自動產生、頁碼可點、PDF 附書籤）→ 後台地圖 → 前置設定
 - A 核心工作：全景圖解、找資料、狀態機、一個流程一頁、讀懂系統資訊、側欄面板、每天的節奏
 - B 控制 AI：控制點地圖、每組參數「設定（目前值）｜情境 → 結果」、測試方法、症狀 → 改哪裡
 - C 其他與維護：其他頁面、維護節奏、目前設定值附錄 → 封底

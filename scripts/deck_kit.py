@@ -8,13 +8,16 @@
     d.cover(...); d.slide(part, title, lede, body); ...; d.back_cover(...)
     html = d.write()          # →「AI GO 租戶名 App名 YYYYMMDD.html」，PDF 同名
 
+目錄頁一定會有：沒呼叫 d.toc() 時 write() 自動插在封面後面。頁碼、分隔頁頁目都在 write() 時才算。
+
 版面預算（見 references/layout-guide.md）：內容區約 1392×650；兩張並排圖每張 ≤ 680 寬。
 品牌規則：品牌藍不換色、每頁左緣藍條、封面／分隔頁／封底深底（見 references/brand.md）。
 """
 import datetime as _dt
 import json
 import os
-from html import escape
+import re
+from html import escape, unescape
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -22,6 +25,10 @@ TW = _dt.timezone(_dt.timedelta(hours=8))
 LOGO = ('<div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#1F80FF" stroke-width="1.6" stroke-linecap="round">'
         '<path d="M12 3 L4.5 20 M12 3 L19.5 20 M8 13 h8"/><circle cx="12" cy="3" r="1.6" fill="#1F80FF"/></svg></div>')
 _BAD = set('<>:"/\\|?*')
+_TAG = re.compile(r"<[^>]+>")
+_TOC_ROWS = 15          # 目錄每欄最多列數（一般字級）
+_TOC_ROWS_DENSE = 18    # dense 字級
+_TOC_HOWTO_ROWS = 3     # 目錄第一頁底部「讀法」列佔掉的列數
 
 
 def deck_filename(tenant, app, made, ext=".pdf"):
@@ -169,8 +176,9 @@ class Deck:
         """bg：light 白（預設）｜soft 淺灰（截圖多的頁）｜dark 深底。"""
         self.slides.append(dict(part=part, title=title, lede=lede, body=body, kicker=kicker or part, cls=f"{cls} {bg}".strip()))
 
-    def raw(self, html, part="", cls=""):
-        self.slides.append(dict(raw=html, part=part, cls=cls))
+    def raw(self, html, part="", cls="", title=None):
+        """自訂整頁 HTML。title 有給才會列進目錄。"""
+        self.slides.append(dict(raw=html, part=part, cls=cls, title=title))
 
     def cover(self, sub, meta=(), hero=None, hero_w=720, kicker=None):
         """封面（深底）：logo、眉標、App 名＋手冊名、一句話、製作日章、底部資訊列。
@@ -184,10 +192,21 @@ class Deck:
 <div class="cv-date"><span>製作日</span><b>{self.made:%Y.%m.%d}</b></div>
 <div class="cv-meta">{m}</div></div><div class="cv-r">{h}</div></div>""", cls="cover-slide")
 
-    def divider(self, part, label, title, desc, items):
-        """分隔頁（深底）：PART 標籤、標題、一句話、本部分頁目。"""
-        self.raw(f"""<div class="divider"><div class="dv-k">{label}</div><h1>{title}</h1><p>{desc}</p>
-<div class="dv-list">{self.bullets(items)}</div></div>""", part=part, cls="divider-slide")
+    def divider(self, part, label, title, desc, items=None):
+        """分隔頁（深底）：PART 標籤、標題、一句話、本部分頁目。
+        items 省略＝write() 時自動列出本部分每一頁的標題與頁碼（建議）；給字串清單則照給的列。
+        分隔頁同時是目錄的分組：label（PART A）＋title（核心工作）。"""
+        self.slides.append(dict(kind="divider", part=part, label=label, title=title, desc=desc, items=items,
+                                cls="divider-slide"))
+
+    def toc(self, title="目錄", lede="點標題可直接跳到該頁。", howto=True):
+        """目錄頁：write() 時依實際頁序產生（分隔頁＝分組、內容頁＝列、頁碼可點）。
+        放在呼叫的位置；沒呼叫的話 write() 自動插在封面後面——每份手冊一定有目錄。
+        howto=True：底部放「讀法」列（編號、情境 → 結果、注意）；列太多放不下時省略。
+        列多時自動縮字級（dense），再多就拆成「（續）」欄與多頁。"""
+        if any(x.get("kind") == "toc" for x in self.slides):
+            raise ValueError("目錄只能有一個（d.toc() 呼叫了兩次）")
+        self.slides.append(dict(kind="toc", title=title, lede=lede, howto=howto))
 
     def back_cover(self, title="有問題時", lead="", contact=()):
         """封底（深底）：logo、一句話、摘要、聯絡列（固定帶 Urfit Technology Co., Ltd. · ai-go.app）。"""
@@ -195,23 +214,123 @@ class Deck:
         self.raw(f"""<div class="back">{LOGO}<div class="cv-k" style="margin:0 0 26px">AI GO · {escape(self.tenant)}</div>
 <h1>{title}</h1><p>{lead}</p><div class="contact">{items}</div></div>""", cls="back-slide")
 
+    # ───────────── 目錄 ─────────────
+    @staticmethod
+    def _plain(html):
+        return unescape(_TAG.sub("", str(html or ""))).strip()
+
+    def _toc_groups(self, slides):
+        """依頁序把可列入目錄的頁分組：[{label, title, page, rows:[(標題, 頁碼)]}]。
+        slides 為最終頁序；分隔頁開新組，第一個分隔頁之前的頁歸在第一頁的 part 底下。"""
+        groups = []
+        for i, s in enumerate(slides, 1):
+            kind = s.get("kind")
+            if kind == "divider":
+                groups.append(dict(label=self._plain(s["label"]), title=self._plain(s["title"]), page=i, rows=[]))
+                continue
+            if kind == "toc" or s.get("cls") in ("cover-slide", "back-slide"):
+                continue
+            title = self._plain(s.get("title"))
+            if not title:
+                continue
+            if not groups:
+                groups.append(dict(label="", title=self._plain(s.get("part")) or "開始之前", page=i, rows=[]))
+            groups[-1]["rows"].append((title, i))
+        return groups
+
+    @staticmethod
+    def _toc_pages(groups, howto):
+        """把分組排成目錄頁：每頁最多 4 欄；組太長就拆成「（續）」欄。回傳 (pages, dense, howto_at)。
+        pages：[[欄, …], …]，欄＝(group, rows, 是否續欄)。
+        讀法列放在最後一頁（每欄都留得出 _TOC_HOWTO_ROWS 列時）；放不下就省略（howto_at=None），不為它多開一頁。"""
+        longest = max((len(g["rows"]) for g in groups), default=0)
+        dense = longest > _TOC_ROWS - (_TOC_HOWTO_ROWS if howto else 0)
+        cap = _TOC_ROWS_DENSE if dense else _TOC_ROWS
+        cols = []
+        for g in groups:
+            rows = g["rows"] or [None]
+            for k in range(0, len(rows), cap):
+                cols.append((g, [r for r in rows[k:k + cap] if r], k > 0))
+        pages = [cols[k:k + 4] for k in range(0, len(cols), 4)] or [[]]
+        fits = all(len(rows) <= cap - _TOC_HOWTO_ROWS for _, rows, _ in pages[-1])
+        return pages, dense, (len(pages) - 1 if howto and fits else None)
+
+    def _toc_body(self, cols, dense, howto):
+        html = []
+        if cols:
+            n = max(len(cols), 3)
+            html.append(f'<div class="toc{" dense" if dense else ""}" style="grid-template-columns:repeat({n},minmax(0,1fr))">')
+            for g, rows, cont in cols:
+                letter = g["label"].split()[-1] if g["label"] else ""
+                head = escape(g["title"]) + ("（續）" if cont else "")
+                html.append(f'<div class="toc-col"><a class="toc-h" href="#p{g["page"]:02d}">'
+                            + (f'<span class="pk">{escape(letter)}</span>' if letter else "")
+                            + f'<span class="toc-l">{escape(g["label"]) or "&nbsp;"}</span><b>{head}</b></a>')
+                for t, pg in rows:
+                    html.append(f'<a class="toc-i" href="#p{pg:02d}"><span class="t">{escape(t)}</span>'
+                                f'<span class="pg">{pg:02d}</span></a>')
+                html.append("</div>")
+            html.append("</div>")
+        if howto:
+            html.append(f"""<div class="howto">
+  <div><span class="mk-demo">1</span>截圖上的藍色編號，對應同頁的編號說明</div>
+  <div>{self.chip("情境 → 結果")} 把設定改成這樣，使用者遇到時會發生什麼</div>
+  <div>{self.chip("注意", "warn")} 容易踩錯或會影響客人的地方</div>
+</div>""")
+        return "".join(html)
+
+    def _layout(self):
+        """展開目錄、算頁碼。回傳最終頁序（每頁一個 dict；目錄頁帶 body、分隔頁帶 items）。"""
+        slides = list(self.slides)
+        at = next((i for i, s in enumerate(slides) if s.get("kind") == "toc"), None)
+        if at is None:   # 目錄必須有：自動插在封面後面（沒有封面就放第一頁）
+            at = next((i + 1 for i, s in enumerate(slides) if s.get("cls") == "cover-slide"), 0)
+            slides.insert(at, dict(kind="toc", title="目錄", lede="點標題可直接跳到該頁。", howto=True))
+        spec = slides[at]
+        # 目錄頁數只跟列數有關、跟頁碼無關：先算頁數，展開後再算真正的頁碼
+        pages, _, _ = self._toc_pages(self._toc_groups(slides), spec["howto"])
+        tocs = [dict(kind="toc", part="目錄", title=spec["title"] + ("（續）" if k else ""), lede=spec["lede"])
+                for k in range(len(pages))]
+        slides = slides[:at] + tocs + slides[at + 1:]
+        groups = self._toc_groups(slides)
+        pages, dense, howto_at = self._toc_pages(groups, spec["howto"])
+        for k, (t, cols) in enumerate(zip(tocs, pages)):
+            t["body"] = self._toc_body(cols, dense, k == howto_at)
+        # 分隔頁：items 省略 → 自動列本部分頁目＋頁碼
+        for g in groups:
+            s = slides[g["page"] - 1]
+            if s.get("kind") == "divider" and s.get("items") is None:
+                slides[g["page"] - 1] = dict(s, items=[f'{escape(t)}<span class="dv-pg">{pg:02d}</span>'
+                                                       for t, pg in g["rows"]])
+        return slides
+
     # ───────────── 輸出 ─────────────
     def write(self, out=None):
-        """輸出 HTML；out 省略＝依檔名規則「AI GO 租戶名 App名 YYYYMMDD.html」。PDF 用同名 .pdf。"""
+        """輸出 HTML；out 省略＝依檔名規則「AI GO 租戶名 App名 YYYYMMDD.html」。PDF 用同名 .pdf。
+        目錄頁一定會產生（沒呼叫 toc() 就自動插在封面後面）。每頁帶 id="pNN"，目錄可點跳頁。"""
         out = Path(out or self.filename(".html")).resolve()
         self._src = os.path.relpath(self.shots, out.parent).replace("\\", "/")
         # 截圖路徑在 shot() 時已經寫進 HTML，這裡統一換成相對 out 的路徑
         css = (HERE / "deck.css").read_text(encoding="utf-8") + self.extra_css
-        pages, n = [], len(self.slides)
-        for i, s in enumerate(self.slides, 1):
+        slides = self._layout()
+        pages, n = [], len(slides)
+        for i, s in enumerate(slides, 1):
             part = ("　·　" + s["part"]) if s.get("part") else ""
             foot = (f'<div class="foot"><span>AI GO · {escape(self.tenant)}　{escape(self.name)}{part}</span>'
                     f'<span class="pg">{i:02d} / {n:02d}</span></div>')
-            if "raw" in s:
+            sid = f'id="p{i:02d}"'
+            if s.get("kind") == "divider":
+                pages.append(f"""<section {sid} class="slide divider-slide"><div class="divider"><div class="dv-k">{s['label']}</div>
+<h1>{s['title']}</h1><p>{s['desc']}</p><div class="dv-list">{self.bullets(s['items'] or [])}</div></div>{foot}</section>""")
+            elif s.get("kind") == "toc":
+                pages.append(f"""<section {sid} class="slide toc-slide">
+  <header><div class="kicker">CONTENTS</div><h2>{s['title']}</h2><p class="lede">{s['lede']}</p></header>
+  <div class="content">{s['body']}</div>{foot}</section>""")
+            elif "raw" in s:
                 bare = s.get("cls") in ("cover-slide", "back-slide")
-                pages.append(f'<section class="slide {s.get("cls", "")}">{s["raw"]}{"" if bare else foot}</section>')
+                pages.append(f'<section {sid} class="slide {s.get("cls", "")}">{s["raw"]}{"" if bare else foot}</section>')
             else:
-                pages.append(f"""<section class="slide {s['cls']}">
+                pages.append(f"""<section {sid} class="slide {s['cls']}">
   <header><div class="kicker">{s['kicker']}</div><h2>{s['title']}</h2><p class="lede">{s['lede']}</p></header>
   <div class="content">{s['body']}</div>{foot}</section>""")
         html = "".join(pages).replace('src="shots/', f'src="{self._src}/')
@@ -221,5 +340,6 @@ class Deck:
 <style>{css}</style></head><body>{html}</body></html>"""
         out.write_text(doc, encoding="utf-8")
         print("slides", n, "→", out)
-        print("PDF：node <skill>/scripts/render.mjs --html", f'"{out.name}"', "--png preview（PDF 與 HTML 同名）")
+        print("PDF：node <skill>/scripts/render.mjs --html", f'"{out.name}"',
+              "--png preview（PDF 與 HTML 同名；超過 20 MB 自動壓縮）")
         return out

@@ -12,8 +12,9 @@ description: >
 把一支 AI GO custom app 做成「讀得懂、照著做得出來」的 16:9 閱讀式簡報 PDF：
 真實後台截圖、大功能全頁圖解、一個流程一頁、每個設定都講清楚「改了在什麼情境會怎樣」。
 
-**樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、每頁左緣品牌藍條、
-全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
+**樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、**封面後一定是目錄頁**、
+每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
+**交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
 
@@ -57,7 +58,8 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
 |---|---|
 | Node 18+ ＋ `npm install`（skill 目錄） | 裝 puppeteer-core；自我更新提示依賴有變時要重跑 |
 | Google Chrome | 或設 `CHROME_PATH` |
-| Python 3 ＋ Pillow | 排版與總表（`pip install pillow`） |
+| Python 3 ＋ Pillow ＋ pypdf | 排版、總表、PDF 壓縮（`pip install pillow pypdf`） |
+| Ghostscript（選配） | 有的話 PDF 壓縮優先用它（`gs`／`gswin64c`），沒有就用 pypdf |
 | 登入憑證 | runtime：`AIGO_EMAIL`／`AIGO_PASSWORD`（或 `AIGO_TOKEN`）；preview：`DEVPORTAL_PAT`。放環境變數或 `env_file`，**不要寫進任何 repo** |
 | app 原始碼 | 讀路由、欄位、後端行為（說法查證要用） |
 
@@ -84,7 +86,7 @@ python <skill>/scripts/contact_sheet.py "shots/*.png" --out disc/sheet   # G2：
 python <skill>/scripts/prep_state.py restore --table …                   # 還原
 cp <skill>/templates/deck_content.example.py deck_content.py             # P5：改 SKILL 路徑後照大綱寫
 python deck_content.py                                                   # →「AI GO 租戶名 App名 YYYYMMDD.html」
-node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF；> 20 MB 自動壓縮
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label   # G4
 ```
 
@@ -104,7 +106,12 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 8. **密鑰零容忍**：每張截圖檢查；憑證只放本機。
 9. **品牌不改**：色彩、字體、版型照 AI GO 母版；App 自己的品牌色只出現在截圖裡。
 10. **只寫功能與操作，不插播**：不寫開發歷史、設計理由、技術架構、比較與評價、查證依據、製作過程
-    （references/writing-guide.md）。介紹只在封面一句話與導讀頁。
+    （references/writing-guide.md）。介紹只在封面一句話與目錄頁。
+11. **一定有目錄頁**：`Deck.write()` 依實際頁序自動產生（分隔頁＝分組、頁碼可點、PDF 附書籤），
+    不要手刻、也不要刪。頁標題就是目錄列，寫短一點（約 16 字內）。
+12. **交付檔獨立、小於 20 MB**：圖片一律用本機截圖（不引用網址）；`render.mjs` 超過 20 MB 自動呼叫
+    `compress_pdf.py` 整份壓縮。壓到畫質底線仍超過（exit 2）→ **先問使用者**，同意就照現況交付
+    （references/workflow.md P7）。
 
 ## 檔案
 
@@ -115,8 +122,9 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/shoot.mjs` | 依 `shots.plan.mjs` 分群組截圖 |
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
 | `scripts/desktop_shot.py` | 瀏覽器以外的畫面：桌面視窗／螢幕／區域截圖，進同一份 `shots.json`（Windows 零相依；macOS／Linux 盡力） |
-| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、分隔頁、封底）與檔名規則 |
-| `scripts/render.mjs` | HTML → 同名 PDF ＋ 每頁 PNG ＋ 溢出／擠壓檢查 |
+| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、分隔頁（自動頁目）、封底）與檔名規則 |
+| `scripts/render.mjs` | HTML → 同名 PDF（含書籤）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
+| `scripts/compress_pdf.py` | 整份 PDF 壓縮（Ghostscript 或 pypdf）＋ 驗證頁數／圖片／連結／書籤不變、無外部參照、字型內嵌 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |

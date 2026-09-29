@@ -227,3 +227,20 @@ table.t.dense td { padding: 6px 14px 6px 0; font-size: 14px; line-height: 1.45; 
 .back h1 { font-size: 52px; line-height: 1.15; margin: 0; font-weight: 700; letter-spacing: -.02em; }
 .back p { font-size: 20px; color: var(--on-dark-2); line-height: 1.65; margin: 24px 0 0; max-width: 1000px; }
 .back .contact { margin-top: auto; border-top: 1px solid var(--line-dark); padding-top: 20px; font-size: 15px; color: var(--on-dark-2); display: flex; gap: 40px; }
+
+/* ───── 目錄頁（Deck.toc，write() 自動產生）：每個 PART 一欄，列可點跳頁 ───── */
+.toc { display: grid; gap: 0 36px; align-content: start; }
+.toc a { color: inherit; text-decoration: none; }
+.toc-col { display: flex; flex-direction: column; min-width: 0; border-left: 3px solid var(--blue); padding-left: 18px; position: relative; }
+.toc-h { display: block; padding: 2px 0 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line-light); }
+.toc-h .pk { top: -6px; font-size: 40px; }
+.toc-l { display: block; font-size: 12px; font-weight: 700; letter-spacing: .24em; color: var(--blue); margin-bottom: 4px; }
+.toc-h b { display: block; font-size: 19px; line-height: 1.3; padding-right: 44px; }
+.toc-i { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dotted var(--line-light);
+  font-size: 15.5px; line-height: 1.4; color: var(--ink-2); }
+.toc-i .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toc-i .pg, .dv-pg { flex: none; font-feature-settings: "tnum"; color: var(--blue); font-weight: 700; font-size: 14px; letter-spacing: .06em; }
+.toc.dense .toc-i { padding: 5px 0; font-size: 14.5px; }
+.toc-slide .howto { margin-top: auto; }
+.dv-pg { margin-left: 10px; color: var(--cyan); font-size: 13px; }
+.toc-slide .howto { grid-template-columns: repeat(3, auto); justify-content: start; gap: 12px 44px; }
