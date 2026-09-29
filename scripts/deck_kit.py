@@ -9,6 +9,7 @@
     html = d.write()          # →「AI GO 租戶名 App名 YYYYMMDD.html」，PDF 同名
 
 目錄頁一定會有：沒呼叫 d.toc() 時 write() 自動插在封面後面。頁碼、分隔頁頁目都在 write() 時才算。
+驗收數據（選配，使用者同意才放）：d.acceptance(...)，預設排在目錄後第一章。
 
 版面預算（見 references/layout-guide.md）：內容區約 1392×650；兩張並排圖每張 ≤ 680 寬。
 品牌規則：品牌藍不換色、每頁左緣藍條、封面／分隔頁／封底深底（見 references/brand.md）。
@@ -28,7 +29,11 @@ _BAD = set('<>:"/\\|?*')
 _TAG = re.compile(r"<[^>]+>")
 _TOC_ROWS = 15          # 目錄每欄最多列數（一般字級）
 _TOC_ROWS_DENSE = 18    # dense 字級
-_TOC_HOWTO_ROWS = 3     # 目錄第一頁底部「讀法」列佔掉的列數
+_TOC_HOWTO_ROWS = 3     # 目錄底部「讀法」列佔掉的列數
+_TOC_HEAD_ROWS = 2      # 同一欄疊第二組時，組標題佔掉的列數
+ACC_PART = "驗收數據"
+ACC_MAX_PAGES, ACC_MAX_CARDS, ACC_MAX_ROWS = 2, 4, 8
+ACC_HEAD = ("指標", "定義", "結果", "樣本", "測試日期")
 
 
 def deck_filename(tenant, app, made, ext=".pdf"):
@@ -199,6 +204,42 @@ class Deck:
         self.slides.append(dict(kind="divider", part=part, label=label, title=title, desc=desc, items=items,
                                 cls="divider-slide"))
 
+    def acceptance(self, cards=(), rows=(), note="", sources=(), title="指標與結果",
+                   lede="交付前的驗收測試結果，每個數字都附定義與樣本數。", head=ACC_HEAD, after_toc=True):
+        """驗收數據頁（選配）：開發歷程中有重要測試數據（例：OCR 辨識準確度、AI 判斷正確率），
+        **且使用者在大綱階段同意放進手冊**時才用。預設排在目錄後第一章（after_toc=False 則照呼叫順序）。
+
+        cards：[(數值, 指標名, 一句話定義)]，≤ 4 張，放最重要的指標，例 ("98.2%", "金額辨識準確率", "…")
+        rows：[(指標, 定義, 結果, 樣本, 測試日期)]，≤ 8 列；欄位可用 head 改
+        note：一句話講測試範圍與限制（例：樣本來源、未涵蓋的情況）
+        sources：每個數字的來源（評估紀錄、測試報告的路徑或名稱）。**必填**，不印進手冊，
+                 write() 時印出來供 G3 查證與 P7 交付回報。
+        最多 2 頁；數字照來源抄，不重算、不美化（references/writing-guide.md「驗收數據」）。"""
+        if sum(x.get("kind") == "acceptance" for x in self.slides) >= ACC_MAX_PAGES:
+            raise ValueError(f"驗收數據最多 {ACC_MAX_PAGES} 頁：挑最重要的指標，其餘請使用者決定要不要放")
+        if not sources:
+            raise ValueError("驗收數據要附來源 sources=[…]（評估紀錄、測試報告）：不印進手冊，查證與交付回報用")
+        if not cards and not rows:
+            raise ValueError("驗收數據至少要有 cards 或 rows")
+        if len(cards) > ACC_MAX_CARDS:
+            raise ValueError(f"指標卡最多 {ACC_MAX_CARDS} 張：只放最重要的，其餘放 rows")
+        if len(rows) > ACC_MAX_ROWS:
+            raise ValueError(f"表格最多 {ACC_MAX_ROWS} 列：挑重點，或拆成第二頁")
+        if any(len(r) != len(head) for r in rows):
+            raise ValueError(f"每一列要有 {len(head)} 欄：{'｜'.join(head)}")
+        body = ""
+        if cards:
+            body += (f'<div class="acc-cards" style="grid-template-columns:repeat({len(cards)},minmax(0,1fr))">'
+                     + "".join(f'<div class="acc-card"><div class="v">{v}</div><b>{n}</b><span>{d}</span></div>'
+                               for v, n, d in cards) + "</div>")
+        if rows:
+            widths = ["220px", "auto", "220px", "110px", "130px"] if len(head) == 5 else None
+            body += self.table(list(head), [list(r) for r in rows], widths)
+        if note:
+            body += f'<div class="acc-note">{note}</div>'
+        self.slides.append(dict(kind="acceptance", part=ACC_PART, title=title, lede=lede, body=body,
+                                kicker=ACC_PART, cls="light acc-slide", sources=list(sources), after_toc=after_toc))
+
     def toc(self, title="目錄", lede="點標題可直接跳到該頁。", howto=True):
         """目錄頁：write() 時依實際頁序產生（分隔頁＝分組、內容頁＝列、頁碼可點）。
         放在呼叫的位置；沒呼叫的話 write() 自動插在封面後面——每份手冊一定有目錄。
@@ -220,55 +261,91 @@ class Deck:
         return unescape(_TAG.sub("", str(html or ""))).strip()
 
     def _toc_groups(self, slides):
-        """依頁序把可列入目錄的頁分組：[{label, title, page, rows:[(標題, 頁碼)]}]。
-        slides 為最終頁序；分隔頁開新組，第一個分隔頁之前的頁歸在第一頁的 part 底下。"""
-        groups = []
+        """依頁序把可列入目錄的頁分組：[{label, title, page, rows:[(標題, 頁碼)], divided}]。
+        分隔頁開新組（divided）；第一個分隔頁之前的頁依 part 分組（例：驗收數據、開始之前）。"""
+        groups, seen_divider = [], False
         for i, s in enumerate(slides, 1):
             kind = s.get("kind")
             if kind == "divider":
-                groups.append(dict(label=self._plain(s["label"]), title=self._plain(s["title"]), page=i, rows=[]))
+                seen_divider = True
+                groups.append(dict(label=self._plain(s["label"]), title=self._plain(s["title"]), page=i, rows=[],
+                                   divided=True))
                 continue
             if kind == "toc" or s.get("cls") in ("cover-slide", "back-slide"):
                 continue
             title = self._plain(s.get("title"))
             if not title:
                 continue
-            if not groups:
-                groups.append(dict(label="", title=self._plain(s.get("part")) or "開始之前", page=i, rows=[]))
+            part = self._plain(s.get("part")) or "開始之前"
+            if not groups or (not seen_divider and groups[-1]["title"] != part):
+                groups.append(dict(label="", title=part, page=i, rows=[], divided=False))
             groups[-1]["rows"].append((title, i))
         return groups
 
     @staticmethod
-    def _toc_pages(groups, howto):
-        """把分組排成目錄頁：每頁最多 4 欄；組太長就拆成「（續）」欄。回傳 (pages, dense, howto_at)。
-        pages：[[欄, …], …]，欄＝(group, rows, 是否續欄)。
-        讀法列放在最後一頁（每欄都留得出 _TOC_HOWTO_ROWS 列時）；放不下就省略（howto_at=None），不為它多開一頁。"""
-        longest = max((len(g["rows"]) for g in groups), default=0)
-        dense = longest > _TOC_ROWS - (_TOC_HOWTO_ROWS if howto else 0)
-        cap = _TOC_ROWS_DENSE if dense else _TOC_ROWS
-        cols = []
-        for g in groups:
+    def _toc_pack(groups, cap):
+        """排欄：欄＝[(group, rows, 是否續)]。分隔頁之前的小組（驗收數據、開始之前）疊在同一欄；
+        每個 PART 自成一欄，超過 cap 列拆成「（續）」欄。"""
+        cols, col, load = [], [], 0
+        for g in (g for g in groups if not g["divided"]):
+            rows, cont = list(g["rows"]), False
+            while True:
+                extra = _TOC_HEAD_ROWS if col else 0
+                room = cap - load - extra
+                if col and (room <= 0 or (room < len(rows) and room < 2)):
+                    cols.append(col)
+                    col, load = [], 0
+                    continue
+                take, rows = rows[:room], rows[room:]
+                col.append((g, take, cont))
+                load += extra + len(take)
+                if not rows:
+                    break
+                cols.append(col)
+                col, load, cont = [], 0, True
+        if col:
+            cols.append(col)
+        for g in (g for g in groups if g["divided"]):
             rows = g["rows"] or [None]
             for k in range(0, len(rows), cap):
-                cols.append((g, [r for r in rows[k:k + cap] if r], k > 0))
+                cols.append([(g, [r for r in rows[k:k + cap] if r], k > 0)])
+        return cols
+
+    @staticmethod
+    def _toc_load(col):
+        return sum(len(rows) for _, rows, _ in col) + _TOC_HEAD_ROWS * (len(col) - 1)
+
+    @classmethod
+    def _toc_pages(cls, groups, howto):
+        """把分組排成目錄頁，每頁最多 4 欄。回傳 (pages, dense, howto_at)。
+        先試一般字級、再試 dense，能一頁放完且不拆「（續）」就用；否則 dense 拆成多頁。
+        讀法列放在最後一頁（每欄都留得出 _TOC_HOWTO_ROWS 列時）；放不下就省略（howto_at=None），不為它多開一頁。"""
+        reserve = _TOC_HOWTO_ROWS if howto else 0
+        for dense, cap in ((False, _TOC_ROWS - reserve), (True, _TOC_ROWS_DENSE - reserve)):
+            cols = cls._toc_pack(groups, cap)
+            if len(cols) <= 4 and not any(cont for col in cols for _, _, cont in col):
+                return [cols or []], dense, (0 if howto else None)
+        cols = cls._toc_pack(groups, _TOC_ROWS_DENSE)
         pages = [cols[k:k + 4] for k in range(0, len(cols), 4)] or [[]]
-        fits = all(len(rows) <= cap - _TOC_HOWTO_ROWS for _, rows, _ in pages[-1])
-        return pages, dense, (len(pages) - 1 if howto and fits else None)
+        fits = all(cls._toc_load(col) <= _TOC_ROWS_DENSE - _TOC_HOWTO_ROWS for col in pages[-1])
+        return pages, True, (len(pages) - 1 if howto and fits else None)
 
     def _toc_body(self, cols, dense, howto):
         html = []
         if cols:
             n = max(len(cols), 3)
             html.append(f'<div class="toc{" dense" if dense else ""}" style="grid-template-columns:repeat({n},minmax(0,1fr))">')
-            for g, rows, cont in cols:
-                letter = g["label"].split()[-1] if g["label"] else ""
-                head = escape(g["title"]) + ("（續）" if cont else "")
-                html.append(f'<div class="toc-col"><a class="toc-h" href="#p{g["page"]:02d}">'
-                            + (f'<span class="pk">{escape(letter)}</span>' if letter else "")
-                            + f'<span class="toc-l">{escape(g["label"]) or "&nbsp;"}</span><b>{head}</b></a>')
-                for t, pg in rows:
-                    html.append(f'<a class="toc-i" href="#p{pg:02d}"><span class="t">{escape(t)}</span>'
-                                f'<span class="pg">{pg:02d}</span></a>')
+            for col in cols:
+                html.append('<div class="toc-col">')
+                for j, (g, rows, cont) in enumerate(col):
+                    letter = g["label"].split()[-1] if g["label"] else ""
+                    head = escape(g["title"]) + ("（續）" if cont else "")
+                    html.append(f'<a class="toc-h{" sub" if j else ""}" href="#p{g["page"]:02d}">'
+                                + (f'<span class="pk">{escape(letter)}</span>' if letter else "")
+                                + f'<span class="toc-l">{escape(g["label"]) or "&nbsp;"}</span><b>{head}</b></a>')
+                    for t, pg in rows:
+                        html.append(f'<a class="toc-i" href="#p{pg:02d}"><span class="t">{escape(t)}</span>'
+                                    f'<span class="pg">{pg:02d}</span></a>')
                 html.append("</div>")
             html.append("</div>")
         if howto:
@@ -281,11 +358,13 @@ class Deck:
 
     def _layout(self):
         """展開目錄、算頁碼。回傳最終頁序（每頁一個 dict；目錄頁帶 body、分隔頁帶 items）。"""
-        slides = list(self.slides)
+        acc = [s for s in self.slides if s.get("kind") == "acceptance" and s.get("after_toc")]
+        slides = [s for s in self.slides if not any(s is a for a in acc)]
         at = next((i for i, s in enumerate(slides) if s.get("kind") == "toc"), None)
         if at is None:   # 目錄必須有：自動插在封面後面（沒有封面就放第一頁）
             at = next((i + 1 for i, s in enumerate(slides) if s.get("cls") == "cover-slide"), 0)
             slides.insert(at, dict(kind="toc", title="目錄", lede="點標題可直接跳到該頁。", howto=True))
+        slides[at + 1:at + 1] = acc      # 驗收數據（選配）預設是目錄後第一章
         spec = slides[at]
         # 目錄頁數只跟列數有關、跟頁碼無關：先算頁數，展開後再算真正的頁碼
         pages, _, _ = self._toc_pages(self._toc_groups(slides), spec["howto"])
@@ -340,6 +419,11 @@ class Deck:
 <style>{css}</style></head><body>{html}</body></html>"""
         out.write_text(doc, encoding="utf-8")
         print("slides", n, "→", out)
+        for i, s in enumerate(slides, 1):
+            if s.get("kind") == "acceptance":
+                print(f"驗收數據（第 {i} 頁）來源——G3 查證、P7 交付回報用，不印進手冊：")
+                for src in s["sources"]:
+                    print("  -", src)
         print("PDF：node <skill>/scripts/render.mjs --html", f'"{out.name}"',
               "--png preview（PDF 與 HTML 同名；超過 20 MB 自動壓縮）")
         return out
