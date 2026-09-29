@@ -244,3 +244,14 @@ table.t.dense td { padding: 6px 14px 6px 0; font-size: 14px; line-height: 1.45; 
 .toc-slide .howto { margin-top: auto; }
 .dv-pg { margin-left: 10px; color: var(--cyan); font-size: 13px; }
 .toc-slide .howto { grid-template-columns: repeat(3, auto); justify-content: start; gap: 12px 44px; }
+.toc-h.sub { margin-top: 22px; }
+
+/* ───── 驗收數據（Deck.acceptance，選配）：指標卡＋定義表＋範圍說明 ───── */
+.acc-cards { display: grid; gap: 24px; flex: none; margin-bottom: 22px; }
+.acc-card { border-left: 3px solid var(--blue); padding: 6px 0 6px 20px; display: flex; flex-direction: column; gap: 4px; }
+.acc-card .v { font-size: 52px; line-height: 1.05; font-weight: 700; color: var(--blue); letter-spacing: -.02em; font-feature-settings: "tnum"; margin-bottom: 6px; }
+.acc-card b { font-size: 17px; color: var(--ink); }
+.acc-card span { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
+.acc-slide table.t { flex: none; }
+.acc-slide table.t td:nth-child(3) { color: var(--ink); font-weight: 700; font-feature-settings: "tnum"; white-space: nowrap; }
+.acc-note { margin-top: auto; flex: none; font-size: 14px; line-height: 1.6; color: var(--ink-3); padding-top: 10px; border-top: 1px solid var(--line-light); }

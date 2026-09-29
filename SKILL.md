@@ -112,6 +112,10 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 12. **交付檔獨立、小於 20 MB**：圖片一律用本機截圖（不引用網址）；`render.mjs` 超過 20 MB 自動呼叫
     `compress_pdf.py` 整份壓縮。壓到畫質底線仍超過（exit 2）→ **先問使用者**，同意就照現況交付
     （references/workflow.md P7）。
+13. **驗收數據是選配，要先問**：探勘時找到開發歷程中重要的測試數據（OCR 準確度、AI 判斷正確率等交付品質），
+    在大綱提案時問使用者要不要放；同意才用 `d.acceptance()`，預設排在目錄後第一章、1～2 頁，
+    只寫指標、定義、結果、樣本、日期與範圍。沒找到就不問、不出這章；**不為了手冊另外跑測試**。
+    數字照來源抄，`sources` 必填（references/writing-guide.md「驗收數據」）。
 
 ## 檔案
 
@@ -122,7 +126,7 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/shoot.mjs` | 依 `shots.plan.mjs` 分群組截圖 |
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
 | `scripts/desktop_shot.py` | 瀏覽器以外的畫面：桌面視窗／螢幕／區域截圖，進同一份 `shots.json`（Windows 零相依；macOS／Linux 盡力） |
-| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、分隔頁（自動頁目）、封底）與檔名規則 |
+| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、驗收數據 `acceptance()`（選配）、分隔頁（自動頁目）、封底）與檔名規則 |
 | `scripts/render.mjs` | HTML → 同名 PDF（含書籤）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
 | `scripts/compress_pdf.py` | 整份 PDF 壓縮（Ghostscript 或 pypdf）＋ 驗證頁數／圖片／連結／書籤不變、無外部參照、字型內嵌 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
