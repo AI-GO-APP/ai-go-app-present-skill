@@ -1,6 +1,6 @@
 /**
  * deck.html → PDF（＋每頁預覽 PNG），並做版面、目錄、獨立性檢查；PDF 超過上限自動整份壓縮。
- * 用法：node scripts/render.mjs --html deck.html [--pdf 手冊.pdf] [--png preview] [--max-mb 20] [--no-compress]
+ * 用法：node scripts/render.mjs --html deck.html [--pdf 手冊.pdf] [--png preview] [--max-mb 20] [--no-compress] [--pdf-timeout 600]
  *
  * 檢查（任一項不過 exit 1）：
  *   - 版面：只看 .content 內的元素（封面、分隔頁、頁尾不算），超出下緣／右緣／擠壓重疊的頁會列出來
@@ -24,6 +24,8 @@ const pdf = path.resolve(opt("--pdf", html.replace(/\.html$/, ".pdf")));
 const pngDir = argv.includes("--png") ? path.resolve(opt("--png", "preview")) : null;
 const maxMb = Number(opt("--max-mb", 20));
 const compress = !argv.includes("--no-compress");
+// 產 PDF 的時間上限（秒）。puppeteer 預設 30 秒，頁多、全頁截圖多時不夠（52 頁約 1 分鐘）
+const pdfTimeout = Number(opt("--pdf-timeout", 600)) * 1000;
 
 let puppeteer;
 for (const d of [path.dirname(html), process.cwd(), path.resolve(HERE, "..")]) {
@@ -33,7 +35,8 @@ if (!puppeteer) throw new Error("找不到 puppeteer-core：在 skill 目錄執�
 const chrome = [process.env.CHROME_PATH, "C:/Program Files/Google/Chrome/Application/chrome.exe",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].filter(Boolean).find((p) => fs.existsSync(p));
 
-const b = await puppeteer.launch({ executablePath: chrome, headless: "new", args: ["--no-sandbox", "--allow-file-access-from-files"] });
+const b = await puppeteer.launch({ executablePath: chrome, headless: "new", args: ["--no-sandbox", "--allow-file-access-from-files"],
+  protocolTimeout: Math.max(pdfTimeout, 180000) }); // CDP 指令上限（預設 180 秒）也要蓋過 PDF 時間
 const p = await b.newPage();
 await p.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
 await p.goto(pathToFileURL(html).href, { waitUntil: "networkidle0", timeout: 120000 });
@@ -89,7 +92,7 @@ const over = await p.evaluate(() => [...document.querySelectorAll(".slide")].map
 console.log(over.length ? over.join("\n") : "版面檢查：沒有超出");
 
 // outline：依 h1／h2 產生 PDF 書籤側欄；目錄的 <a href="#pNN"> 在 PDF 裡是可點的內部連結
-await p.pdf({ path: pdf, width: "1600px", height: "900px", printBackground: true, preferCSSPageSize: true, outline: true, tagged: true });
+await p.pdf({ path: pdf, width: "1600px", height: "900px", printBackground: true, preferCSSPageSize: true, outline: true, tagged: true, timeout: pdfTimeout });
 console.log("PDF", pdf, (fs.statSync(pdf).size / 1048576).toFixed(1) + " MB");
 if (pngDir) {
   fs.mkdirSync(pngDir, { recursive: true });
