@@ -2,8 +2,8 @@
 """簡報內容範例：複製成工作資料夾的 deck_content.py，照大綱改寫。
 每一種頁型都示範一次（references/writing-guide.md 的「頁型」）。截圖名稱要和 shots.plan.mjs 一致。
 
-執行：python deck_content.py → 「AI GO 租戶名 App名 YYYYMMDD.html」
-      node <skill>/scripts/render.mjs --html "AI GO … .html" --png preview   → 同名 PDF
+執行：python deck_content.py → 「AI GO 租戶名 App名 YYYYMMDD.html」（目錄頁自動產生）
+      node <skill>/scripts/render.mjs --html "AI GO … .html" --png preview   → 同名 PDF（超過 20 MB 自動壓縮）
 樣式是 AI GO 品牌 B2B 母版（references/brand.md）：不要改色、不要自訂字體。
 """
 import sys
@@ -22,31 +22,10 @@ P0, PA, PB, PC = "開始之前", "A　核心工作", "B　控制 AI", "C　其�
 d.cover("一句話說清楚這份手冊教什麼：<br>核心工作怎麼做、關鍵設定在哪、改了會怎樣",
         meta=[("對象", "接手後台的第一線人員")], hero="messages-full")
 
-# ── 頁型 2：導讀（三欄目錄＋讀法）──
-d.slide(P0, "這份手冊怎麼讀", "依重要性排列：先學核心工作，再學控制，最後是其他頁面與維護。", f"""
-<div class="grid3">
-  <div class="card part-a"><div class="pk">A</div><h3>核心工作</h3>{d.bullets(["全景", "找資料", "狀態與模式", "主要流程"])}</div>
-  <div class="card part-b"><div class="pk">B</div><h3>控制 AI</h3>{d.bullets(["控制點地圖", "每個參數：情境 → 結果", "症狀 → 改哪裡"])}</div>
-  <div class="card part-c"><div class="pk">C</div><h3>其他與維護</h3>{d.bullets(["其他頁面", "維護節奏", "目前設定值"])}</div>
-</div>
-<div class="howto">
-  <div><span class="mk-demo">1</span>截圖上的藍色編號，對應同頁的編號說明</div>
-  <div>{C("情境 → 結果")} 把設定改成這樣，使用者遇到時會發生什麼</div>
-  <div>{C("注意", "warn")} 容易踩錯或會影響客人的地方</div>
-</div>""")
-
-# ── 頁型 3：分隔頁 ──
-d.divider(PA, "PART A", "核心工作", "這部分教什麼（一句話）", ["全景", "找資料", "三種狀態", "流程：XX", "讀懂 XX"])
-
-# ── 頁型 4：大功能全景（全頁截圖自動包瀏覽器框＋圖解編號；截圖多的頁用 bg="soft"）──
-d.slide(PA, "XX 全景", "由左到右幾個區塊，先記住它們。", d.row(
-    d.fig("messages-full", 1000),
-    d.legend([(1, "區塊一", "做什麼"), (2, "區塊二", "做什麼"), (3, "區塊三", "做什麼")])), bg="soft")
-
-# ── 頁型 5：一頁一個流程（步驟＋局部截圖）──
-d.slide(PA, "流程：XX", "從哪裡開始、到哪裡結束，一頁看完。", d.row(
-    d.col(S([("第一步", "做什麼、看哪裡"), ("第二步", "按哪個按鈕"), ("第三步", "完成後的狀態")]), 600),
-    d.col(d.fig("list-head", 520, caption="② 的畫面") + d.fig("human-mode", 700, caption="③ 的畫面"))))
+# ── 頁型 2：目錄（必備；write() 時依實際頁序自動產生）──
+# 分隔頁＝分組、每頁標題＝一列、頁碼可點跳頁，底部附「讀法」列。這行可省略：沒呼叫時自動插在封面後面。
+# 標題會直接列進目錄，所以每頁標題要短（約 16 字內），太長會被截成「…」。
+d.toc()
 
 # ── 頁型 5b：指令頁（終端框；不截真實終端）── 指令與「實際」輸出；密鑰放 redact 一律遮成 ••••
 d.slide(P0, "前置：安裝與登入", "只做一次。看到最後一行代表成功。", d.row(
@@ -59,6 +38,19 @@ d.slide(P0, "串接：LINE 桌面版設定", "在 LINE 桌面版完成這三步�
     d.fig("line-desktop", 900, caption="LINE 桌面版"),
     d.legend([(1, "設定入口", "左下角齒輪"), (2, "要填的欄位", "貼上後台給的網址")])), bg="soft")
 
+# ── 頁型 3：分隔頁（同時是目錄的分組）──
+d.divider(PA, "PART A", "核心工作", "這部分教什麼（一句話）")   # 頁目與頁碼自動列；要手寫就傳 items=[…]
+
+# ── 頁型 4：大功能全景（全頁截圖自動包瀏覽器框＋圖解編號；截圖多的頁用 bg="soft"）──
+d.slide(PA, "XX 全景", "由左到右幾個區塊，先記住它們。", d.row(
+    d.fig("messages-full", 1000),
+    d.legend([(1, "區塊一", "做什麼"), (2, "區塊二", "做什麼"), (3, "區塊三", "做什麼")])), bg="soft")
+
+# ── 頁型 5：一頁一個流程（步驟＋局部截圖）──
+d.slide(PA, "流程：XX", "從哪裡開始、到哪裡結束，一頁看完。", d.row(
+    d.col(S([("第一步", "做什麼、看哪裡"), ("第二步", "按哪個按鈕"), ("第三步", "完成後的狀態")]), 600),
+    d.col(d.fig("list-head", 520, caption="② 的畫面") + d.fig("human-mode", 700, caption="③ 的畫面"))))
+
 # ── 頁型 6：狀態機（三種模式）── 用 HTML 方塊＋箭頭，樣式見 deck.css 的 .modes
 d.slide(PA, "三種狀態：誰在處理", "同一時間只有一種狀態。", """
 <div class="modes">
@@ -69,6 +61,8 @@ d.slide(PA, "三種狀態：誰在處理", "同一時間只有一種狀態。", 
   <div class="md hum"><b>狀態三</b><span>說明</span></div>
 </div>
 <div class="md-back">怎麼回到狀態一</div>""")
+
+d.divider(PB, "PART B", "控制 AI", "這部分教什麼（一句話）")
 
 # ── 頁型 7：控制點地圖（流程 × 控制它的設定）──
 d.slide(PB, "一次處理經過哪些控制點", "每格下方是控制它的設定。後面每一頁都是其中一格。", """
@@ -94,6 +88,8 @@ d.slide(PB, "症狀 → 改哪裡：速查表", "遇到問題先看這張表。"
     ["狀況一", "看哪裡確認", "改哪個設定／資料"],
     ["狀況二", "", "改哪個設定"],
 ], ["300px", "380px", "auto"], cls="compact dense"))
+
+d.divider(PC, "PART C", "其他與維護", "這部分教什麼（一句話）")
 
 # ── 頁型 10：維護節奏（四欄）──
 d.slide(PC, "維護節奏", "照頻率檢查。", f"""

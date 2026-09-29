@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.6.0 — 2026-09-29
+
+**行為變更**：每份手冊一定有目錄頁；交付的 PDF 超過 20 MB 會自動整份壓縮。
+⚠️ **破壞性（依賴）**：新增 Python 依賴 **pypdf**，請執行 `pip install pypdf`（Ghostscript 選配）。
+沒裝的話，PDF 超過 20 MB 時壓縮會失敗、`render.mjs` exit 1。
+
+### 目錄頁（必備、自動產生）
+
+- **`Deck.toc()`**：`write()` 時依實際頁序產生——分隔頁＝分組（PART 標籤＋標題）、每頁標題＝一列＋頁碼、
+  底部讀法列（原本導讀頁的編號／情境 → 結果／注意）。沒呼叫也會**自動插在封面後面**，不能省略
+- 列多時自動切 dense 字級；一個 PART 超過 18 頁拆成「（續）」欄，4 欄放不下拆成「目錄（續）」頁；讀法列放不下就省略
+- 每頁帶 `id="pNN"`，目錄列是可點的內部連結；PDF 另依分隔頁與頁標題產生**書籤側欄**（`outline: true`）
+- **分隔頁頁目自動列**：`divider(..., items=None)` 自動列出本部分每頁標題與頁碼；手寫 `items` 照舊
+- `raw(..., title=)`：自訂頁給標題才會列進目錄
+- `render.mjs` 檢查目錄存在、每列頁碼等於連到的頁，不過就 exit 1
+- 範本：導讀頁併入目錄頁、前置頁移到第一個分隔頁之前、B／C 補分隔頁；`writing-guide.md` 頁型表「導讀」改「目錄」
+
+### PDF 大小與獨立性
+
+- **`scripts/compress_pdf.py`**（新）：整份 PDF 壓縮。有 Ghostscript 用 pdfwrite `/printer`→`/ebook`；
+  否則 pypdf 無損整理＋把內嵌圖片重編 JPEG（品質 85 → 75 → 65 → 60，後兩階長邊縮到 2560／1920）。
+  每一階都驗證頁數、頁面尺寸、每頁圖片數、內部連結、書籤不變，且無外部參照、字型已內嵌，取第一個壓進上限的版本
+- **`render.mjs`**：PDF 超過 `--max-mb`（預設 20）自動呼叫壓縮；原檔搬到 `disc/…original.pdf`。
+  壓到底線仍超過 → **exit 2**：正式檔名已換成最小版，交付前要問使用者（直接交付／分冊／減頁），同意即可交付。
+  `--no-compress` 可關閉。預覽 PNG 用原始畫質產生
+- **獨立性檢查**：`render.mjs` 擋下網路圖片、背景圖網址、iframe／video／object（exit 1）；
+  `compress_pdf.py --check` 確認成品圖片與字型都內嵌、沒有外部參照
+- `workflow.md` P6／P7、`layout-guide.md`（目錄規格、G4、常見修法）、`brand.md` 固定頁、`pitfalls.md`、SKILL.md 核心原則 11、12
+- 測試：`tests/test_deck_toc.py`（目錄位置、頁碼、續頁、分隔頁頁目、跳脫）、
+  `tests/test_compress_pdf.py`（壓縮、超標 exit 2、原檔保留、連結與書籤保留；需 pypdf＋Pillow，沒裝跳過）
+
 ## 0.5.0 — 2026-09-29
 
 ### 瀏覽器以外的畫面：終端框、桌面視窗截圖、桌面操作工具退路

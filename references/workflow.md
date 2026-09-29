@@ -108,14 +108,32 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 ```
 
 - 樣式固定為 AI GO 品牌 B2B 母版（`brand.md`）；檔名與封面製作日自動產生
+- **目錄頁自動產生**：封面後面（或 `d.toc()` 呼叫的位置），分隔頁＝分組、每頁標題＝一列、頁碼可點；
+  分隔頁的頁目省略 `items` 也會自動列。`render.mjs` 檢查目錄存在且頁碼正確，PDF 另附書籤側欄
+- **獨立檔案**：圖片只用本機截圖（`Deck.shot()`），`render.mjs` 發現網路圖片、iframe、影片就失敗。
+  PDF 會把圖片與字型全部內嵌，寄出去離線也能開
+- **大小**：PDF 超過 20 MB，`render.mjs` 自動呼叫 `compress_pdf.py` 整份壓縮（有 Ghostscript 用它，否則 pypdf
+  把內嵌圖片重編 JPEG，品質 85 → 75 → 65 → 60，後兩階同時縮長邊）。每一階都驗證頁數、圖片、連結、書籤不變。
+  原檔搬到 `disc/…original.pdf`（不交付）；預覽 PNG 用原始畫質產生，G4 不受影響
 
-- `render.mjs` 會列出超出下緣、超出右緣、擠壓重疊的頁；**沒列出不代表好看**
+- `render.mjs` 會列出超出下緣、超出右緣、擠壓重疊的頁，以及目錄與獨立性問題（exit 1）；**沒列出不代表好看**
+- `render.mjs` exit 2 ＝ 壓到畫質底線仍超過 20 MB：正式檔名已經是最小的那一版，先別交付，照 P7 問使用者
 - **G4 逐頁目視**：看總表找問題，再開單頁大圖確認（`layout-guide.md` 的檢查表）
 - 修 → 重跑，直到沒有溢出、沒有擠壓、沒有孤字標題
 
 ## P7 交付與收尾
 
 - 用 SendUserFile 把 PDF 給使用者（display: attach）；檔名必須是「AI GO 租戶名 App名 YYYYMMDD.pdf」
+- **交付前確認大小 < 20 MB**（`python <skill>/scripts/compress_pdf.py "…pdf" --check` 也會確認是獨立檔案）。
+  壓縮後仍超過（`render.mjs`／`compress_pdf.py` exit 2）→ **停下來問使用者**，一句話講大小與原因，給三個選項：
+
+  | 選項 | 內容 |
+  |---|---|
+  | 直接交付 | 目前的壓縮版（已是畫質底線），檔案超過 20 MB |
+  | 分冊 | 依 PART 拆成兩份，檔名後面接「(1of2)」「(2of2)」，每份都有自己的目錄 |
+  | 減頁 | 回 P6 把幾張全頁截圖換成局部、或拆掉最重的頁（腳本會列出原檔最重的頁）後重出 |
+
+  **使用者同意就照現況交付**，不要再自行逼近 20 MB。不能自行選擇超標交付；也不能交付 `disc/` 裡的原檔
 - 截圖時修的 bug（P4）：確認已記進該 app 的評估紀錄，並在交付對話裡列出「修了什麼、影響哪些畫面」；不寫進手冊
 - 還原資料狀態（`prep_state.py restore`／`diff` 確認）
 - PDF 是二進位大檔，**不要預設放進程式碼 repo**；問使用者要不要放 `docs/`
