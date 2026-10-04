@@ -1,0 +1,27 @@
+{
+  "_說明": "交付通知（scripts/handoff.py）。底線開頭的欄位是說明，可刪。規則見 references/handoff.md",
+  "mode": "notice",
+  "audience": "fde",
+  "_audience": "fde＝FDE 給客戶（週會前 2 天交）；rd＝內部 RD 給需求方（做完就交）",
+  "to": "王經理",
+  "ai_helper": "王經理",
+  "_ai_helper": "客戶資料「會用 AI 開發的人」那一欄。有填且在測試站 → 上下兩段（給人看＋貼給 AI）；空白 → 只給人看",
+  "feature": "訂單匯出",
+  "done": "您上週提的「訂單匯出」做好了",
+  "_done": "可省略，預設「「feature」做好了」",
+  "site": "測試站",
+  "url": "https://example.ai-go.app/runtime/order-center#/orders",
+  "steps": [
+    {"do": "打開連結，登入後進「訂單」頁", "expect": "右上角有「匯出」按鈕"},
+    {"do": "月份選 9 月，按「匯出」", "expect": "下載一個檔案"},
+    {"do": "打開下載的檔案", "expect": "每筆都有日期和金額，筆數跟畫面上一樣", "say": "打開檔案，看日期和金額對不對"},
+    {"do": "月份改選 8 月，再按一次「匯出」", "expect": "檔案內容換成 8 月的訂單"}
+  ],
+  "_steps": "最多 5 步。do＝做什麼（一句一個動作）；expect＝預期看到什麼（給 AI 版必填）；say＝給人看的版本另外的寫法（選填）",
+  "meeting": "2026-10-07",
+  "_meeting": "FDE 的週會日。沒寫 reply_by 時，回覆期限＝週會前一天",
+  "reply_by": "2026-10-06",
+  "reply_to": "我",
+  "attach": "截圖",
+  "allow": []
+}

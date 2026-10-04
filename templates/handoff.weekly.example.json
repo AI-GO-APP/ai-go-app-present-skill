@@ -1,0 +1,17 @@
+{
+  "_說明": "本週薄版（scripts/handoff.py）：只放本週變動和要對方決定的事。整本操作手冊留到最後交付時才用",
+  "mode": "weekly",
+  "audience": "fde",
+  "to": "王經理",
+  "changes": [
+    {"feature": "訂單匯出", "site": "測試站", "url": "https://example.ai-go.app/runtime/order-center#/orders",
+     "note": "可以選月份匯出訂單，請照上次傳的步驟試一下"},
+    {"feature": "客人電話遮蔽", "site": "正式站", "status": "已經改好", "note": "訂單列表的電話只顯示後三碼"}
+  ],
+  "decisions": [
+    {"ask": "匯出的檔案要不要加上客人電話？", "options": ["要", "不要"]},
+    {"ask": "「待出貨」超過幾天要標紅？", "options": ["3 天", "5 天", "7 天"]}
+  ],
+  "meeting": "2026-10-07",
+  "reply_to": "我"
+}
