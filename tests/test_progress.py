@@ -1,5 +1,5 @@
 """
-交付通知（scripts/handoff.py）的單元測試（標準函式庫 unittest）。
+進度報告（scripts/progress.py）的單元測試（標準函式庫 unittest）。
 
 執行：python -m unittest discover -s tests -v
 """
@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location("handoff", ROOT / "scripts" / "handoff.py")
+spec = importlib.util.spec_from_file_location("progress", ROOT / "scripts" / "progress.py")
 ho = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ho)
 
@@ -29,13 +29,14 @@ EXPORT = {"feature": "訂單匯出", "steps": [
 MASK = {"feature": "客人電話遮蔽", "done": "電話只顯示後三碼", "steps": [
     {"do": "進「訂單」頁", "expect": "電話只看得到後三碼"},
 ]}
-RD = {"audience": "rd", "to": "王經理", "url": URL, "with_ai": False, "items": [EXPORT], "reply_by": "2026-10-06"}
-FDE = {"audience": "fde", "to": "王經理", "url": URL, "with_ai": False, "items": [EXPORT, MASK],
-       "meeting": "2026-10-07 14:00"}
+ONE = {"to": "王經理", "url": URL, "with_ai": False, "items": [EXPORT], "meeting": "2026-10-07 14:00",
+       "reply_by": "2026-10-06"}
+FDE = {"to": "王經理", "url": URL, "with_ai": False, "items": [EXPORT, MASK], "meeting": "2026-10-07 14:00"}
 
 
-def rd(**kw):
-    c = copy.deepcopy(RD)
+def one(**kw):
+    """這週只有一件事。"""
+    c = copy.deepcopy(ONE)
     c.update(kw)
     return c
 
@@ -52,7 +53,7 @@ def build(c, now=NOW, **kw):
 
 class SingleTests(unittest.TestCase):
     def test_human_only_has_five_parts(self):
-        msg, errors, _ = build(rd())
+        msg, errors, _ = build(one())
         self.assertEqual(errors, [])
         self.assertNotIn(ho.SEP, msg)
         self.assertIn("王經理您好，「訂單匯出」做好了。", msg)                       # 做好了什麼
@@ -62,13 +63,13 @@ class SingleTests(unittest.TestCase):
         self.assertIn("不行的話，截圖傳給我，說是第幾步就好", msg)                    # 回給誰、附什麼
 
     def test_no_site_split(self):
-        msg, _, _ = build(rd(with_ai=True))
+        msg, _, _ = build(one(with_ai=True))
         for word in ("測試站", "正式站"):
             self.assertNotIn(word, msg)
         self.assertIn("只在這個網址上操作", msg)
 
     def test_done_and_say(self):
-        c = rd()
+        c = one()
         c["items"][0]["done"] = "您上週提的「訂單匯出」做好了"
         c["items"][0]["steps"][1]["say"] = "按「匯出」，看有沒有下載一個檔案"
         msg, _, _ = build(c)
@@ -76,7 +77,7 @@ class SingleTests(unittest.TestCase):
         self.assertIn("2. 按「匯出」，看有沒有下載一個檔案", msg)
 
     def test_with_ai_two_parts(self):
-        msg, errors, _ = build(rd(with_ai=True))
+        msg, errors, _ = build(one(with_ai=True))
         self.assertEqual(errors, [])
         upper, lower = msg.split(ho.SEP)
         self.assertIn("下面那段請直接貼給您的 AI", upper)
@@ -88,39 +89,40 @@ class SingleTests(unittest.TestCase):
         self.assertIn("每一步寫「通過」或「不通過」", lower)
 
     def test_with_ai_must_be_asked(self):
-        c = rd()
+        c = one()
         del c["with_ai"]
-        with self.assertRaisesRegex(ho.HandoffError, "with_ai"):
+        with self.assertRaisesRegex(ho.ProgressError, "with_ai"):
             build(c)
-        with self.assertRaisesRegex(ho.HandoffError, "with_ai"):
-            build(rd(with_ai="王經理"))
+        with self.assertRaisesRegex(ho.ProgressError, "with_ai"):
+            build(one(with_ai="王經理"))
 
     def test_ai_version_needs_expect(self):
-        c = rd(with_ai=True)
+        c = one(with_ai=True)
         del c["items"][0]["steps"][0]["expect"]
-        with self.assertRaisesRegex(ho.HandoffError, "expect"):
+        with self.assertRaisesRegex(ho.ProgressError, "expect"):
             build(c)
 
     def test_step_count(self):
-        c = rd()
+        c = one()
         c["items"][0]["steps"] = []
-        with self.assertRaises(ho.HandoffError):
+        with self.assertRaises(ho.ProgressError):
             build(c)
         c["items"][0]["steps"] = [{"do": f"第 {i} 件事"} for i in range(6)]
-        with self.assertRaises(ho.HandoffError):
+        with self.assertRaises(ho.ProgressError):
             build(c)
 
     def test_required_fields(self):
         for key in ("url", "to", "items"):
             with self.subTest(key=key):
-                c = rd()
+                c = one()
                 del c[key]
-                with self.assertRaises(ho.HandoffError):
+                with self.assertRaises(ho.ProgressError):
                     build(c)
-        with self.assertRaises(ho.HandoffError):
-            build(rd(url="交付站首頁"))
-        with self.assertRaises(ho.HandoffError):
-            build(rd(audience="客戶"))
+        with self.assertRaises(ho.ProgressError):
+            build(one(url="交付站首頁"))
+        with self.assertRaisesRegex(ho.ProgressError, "只給 FDE"):
+            build(one(audience="rd"))
+        self.assertEqual(build(one(audience="fde"))[1], [])
 
 
 class WeeklyTests(unittest.TestCase):
@@ -153,11 +155,56 @@ class WeeklyTests(unittest.TestCase):
         self.assertIn("二、「客人電話遮蔽」\n1. 進「訂單」頁。預期：電話只看得到後三碼", lower)
         self.assertIn("每個功能的每一步", lower)
 
-    def test_fde_needs_meeting(self):
+    def test_needs_meeting(self):
         c = fde()
         del c["meeting"]
-        with self.assertRaisesRegex(ho.HandoffError, "meeting"):
+        with self.assertRaisesRegex(ho.ProgressError, "meeting"):
             build(c)
+
+
+class ImageTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / "shots").mkdir()
+        for n in ("a.png", "b.png", "c.jpg"):
+            (self.tmp / "shots" / n).write_bytes(b"x")
+
+    def with_images(self, c):
+        c["items"][0]["images"] = ["shots/a.png", "shots/b.png"]
+        if len(c["items"]) > 1:
+            c["items"][1]["images"] = ["shots/c.jpg"]
+        return c
+
+    def test_numbering_human(self):
+        msg, errors, warns = build(self.with_images(fde()), base=self.tmp)
+        self.assertEqual(errors, [])
+        self.assertIn("一、「訂單匯出」\n畫面：附圖 1、附圖 2\n1. ", msg)
+        self.assertIn("二、「客人電話遮蔽」：電話只顯示後三碼\n畫面：附圖 3\n1. ", msg)
+        self.assertTrue(any("逐張確認" in w for w in warns))
+        self.assertEqual(ho.images(self.with_images(fde())),
+                         [(1, "shots/a.png"), (2, "shots/b.png"), (3, "shots/c.jpg")])
+
+    def test_numbering_single_and_ai(self):
+        msg, _, _ = build(self.with_images(one()), base=self.tmp)
+        self.assertIn(f"連結：{URL}\n畫面：附圖 1、附圖 2", msg)
+        msg, errors, _ = build(self.with_images(fde(with_ai=True)), base=self.tmp)
+        self.assertEqual(errors, [])
+        upper, lower = msg.split(ho.SEP)
+        self.assertIn("一、「訂單匯出」（附圖 1、附圖 2）", upper)
+        self.assertIn("二、「客人電話遮蔽」：電話只顯示後三碼（附圖 3）", upper)
+        self.assertNotIn("附圖", lower)                    # AI 看不到圖，下段不提
+
+    def test_missing_or_not_image(self):
+        c = one()
+        c["items"][0]["images"] = ["shots/none.png"]
+        with self.assertRaisesRegex(ho.ProgressError, "找不到"):
+            build(c, base=self.tmp)
+        c["items"][0]["images"] = ["notes.txt"]
+        with self.assertRaisesRegex(ho.ProgressError, "圖片"):
+            build(c)
+
+    def test_no_images_no_warning(self):
+        self.assertFalse(any("逐張確認" in w for w in build(fde())[2]))
 
 
 class DeadlineTests(unittest.TestCase):
@@ -166,13 +213,13 @@ class DeadlineTests(unittest.TestCase):
         self.assertEqual(ho.fmt_date(dt.date(2026, 10, 11)), "10/11（日）")
 
     def test_defaults(self):
-        c = rd()
+        c = one()
         del c["reply_by"]
-        self.assertEqual(ho.reply_deadline(c, NOW), (dt.datetime(2026, 10, 7), "10/6（二）前"))   # 週日起第 2 個工作日，當天結束前
+        self.assertEqual(ho.reply_deadline(c, NOW), (dt.datetime(2026, 10, 7, 14), "10/7（三）14:00 週會前"))
         self.assertEqual(ho.reply_deadline(fde(), NOW), (dt.datetime(2026, 10, 7, 14), "10/7（三）14:00 週會前"))
         self.assertEqual(ho.reply_deadline(fde(meeting="2026-10-07"), NOW)[1], "10/7（三）週會前")
         self.assertEqual(ho.reply_deadline(fde(reply_by="2026-10-06"), NOW)[1], "10/6（二）前")
-        self.assertEqual(ho.reply_deadline(rd(reply_by="2026-10-06 18:00"), NOW), (dt.datetime(2026, 10, 6, 18), "10/6（二）18:00 前"))
+        self.assertEqual(ho.reply_deadline(one(reply_by="2026-10-06 18:00"), NOW), (dt.datetime(2026, 10, 6, 18), "10/6（二）18:00 前"))
 
     def test_timezone(self):
         m, timed = ho.parse_when("2026-10-07T06:00:00+00:00", "meeting")
@@ -181,9 +228,9 @@ class DeadlineTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_past_deadline_is_error(self):
-        _, errors, _ = build(rd(reply_by="2026-10-01"))
+        _, errors, _ = build(one(reply_by="2026-10-01"))
         self.assertTrue(any("已經過了" in e for e in errors))
-        self.assertEqual(build(rd(reply_by="2026-10-04"))[1], [])                     # 只寫日期＝當天結束前
+        self.assertEqual(build(one(reply_by="2026-10-04"))[1], [])                     # 只寫日期＝當天結束前
         _, errors, warns = build(fde(), now=dt.datetime(2026, 10, 7, 16, 0))         # 週會當天已開過
         self.assertTrue(any("已經過了" in e for e in errors))
         _, errors, warns = build(fde(reply_by="2026-10-09"), now=dt.datetime(2026, 10, 7, 16, 0))
@@ -194,12 +241,11 @@ class DeadlineTests(unittest.TestCase):
         self.assertFalse(warn(dt.datetime(2026, 10, 5, 14, 0)))      # 剛好 48 小時
         self.assertTrue(warn(dt.datetime(2026, 10, 5, 14, 1)))
         self.assertTrue(any("48 小時" in w for w in build(fde(meeting="2026-10-06"))[2]))  # 只寫日期當 00:00
-        self.assertFalse(any("48 小時" in w for w in build(rd(), now=dt.datetime(2026, 10, 6, 9, 0))[2]))
 
 
 class WordingTests(unittest.TestCase):
     def errs(self, done):
-        c = rd()
+        c = one()
         c["items"][0]["done"] = done
         return build(c)[1]
 
@@ -223,11 +269,11 @@ class WordingTests(unittest.TestCase):
 
     def test_quotes_and_urls_are_exempt(self):
         self.assertEqual(self.errs("「Export CSV」按鈕做好了"), [])
-        self.assertEqual(build(rd(url="https://example.ai-go.app/runtime/api-tool#/deploy"))[1], [])
+        self.assertEqual(build(one(url="https://example.ai-go.app/runtime/api-tool#/deploy"))[1], [])
 
     def test_allow_list(self):
         self.assertTrue(self.errs("Shopee 訂單可以匯入了"))
-        c = rd()
+        c = one()
         c["items"][0]["done"] = "Shopee 訂單可以匯入了"
         self.assertEqual(build(c, allow=["shopee"])[1], [])
 
@@ -237,7 +283,7 @@ class WordingTests(unittest.TestCase):
         strings, words = ho.ui_vocab(tmp)
         self.assertIn("匯出", strings)
         self.assertEqual(words, {"sync", "now"})
-        c = rd()
+        c = one()
         c["items"][0]["done"] = "按 Sync now 就會更新"
         _, errors, warns = build(c, allow=words, ui_strings=strings)
         self.assertEqual(errors, [])
@@ -276,20 +322,34 @@ class SafetyTests(unittest.TestCase):
         for done in ("做好了，密碼：abc123", "做好了，帳號：wang@example.com",
                      "金鑰 dev_sk_abcdef", "權杖 eyJhbGciOiJIUzI1NiJ9.eyJzdWIi"):
             with self.subTest(done=done):
-                c = rd()
+                c = one()
                 c["items"][0]["done"] = done
                 self.assertTrue(any(e.startswith("安全") for e in build(c)[1]), done)
 
     def test_url_with_token(self):
-        _, errors, _ = build(rd(url=URL + "?token=abc#/"))
+        _, errors, _ = build(one(url=URL + "?token=abc#/"))
         self.assertTrue(any("網址帶了金鑰" in e for e in errors))
 
     def test_fixed_ai_text_passes_own_lint(self):
-        for c in (rd(with_ai=True), fde(with_ai=True)):
+        for c in (one(with_ai=True), fde(with_ai=True)):
             self.assertEqual(build(c)[1], [])
 
 
 class CliTests(unittest.TestCase):
+    def test_out_copies_images(self):
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "shots").mkdir()
+        (tmp / "shots" / "a.png").write_bytes(b"png")
+        c = one()
+        c["items"][0]["images"] = ["shots/a.png"]
+        p = tmp / "p.json"
+        p.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+        code, out, err = self.run_cli(p, "--out", str(tmp / "進度報告.txt"))
+        self.assertEqual(code, 0, err)
+        self.assertIn("畫面：附圖 1", out)
+        self.assertEqual((tmp / "進度報告_附圖1.png").read_bytes(), b"png")
+        self.assertTrue((tmp / "進度報告.txt").exists())
+
     def run_cli(self, path, *args):
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
@@ -297,7 +357,7 @@ class CliTests(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def test_templates_pass(self):
-        for name in ("handoff.example.json", "handoff.rd.example.json"):
+        for name in ("progress.example.json",):
             with self.subTest(name=name):
                 code, out, err = self.run_cli(ROOT / "templates" / name)
                 self.assertEqual(code, 0, err)
@@ -306,7 +366,7 @@ class CliTests(unittest.TestCase):
 
     def test_failure_prints_no_message(self):
         tmp = Path(tempfile.mkdtemp())
-        c = rd()
+        c = one()
         c["items"][0]["done"] = "API 部署好了"
         p = tmp / "h.json"
         p.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")

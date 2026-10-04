@@ -1,5 +1,5 @@
 """
-deck_kit 驗收數據頁（Deck.acceptance，選配）的單元測試（標準函式庫 unittest）。
+deck_kit 測試報告頁（Deck.acceptance，Phase 0 選了「測試報告」才有）的單元測試（標準函式庫 unittest）。
 
 執行：python -m unittest discover -s tests -v
 """
@@ -28,8 +28,9 @@ class AcceptanceTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
 
-    def deck(self):
-        return dk.Deck(tenant="展示公司", app="發票辨識", shots=self.tmp / "shots", made="2026-09-29")
+    def deck(self, purposes=("操作說明", "測試報告")):
+        return dk.Deck(tenant="展示公司", app="發票辨識", purposes=list(purposes), shots=self.tmp / "shots",
+                       made="2026-09-29")
 
     def write(self, d):
         buf = io.StringIO()
@@ -50,10 +51,10 @@ class AcceptanceTests(unittest.TestCase):
             d.divider(title, label, title, "一句話")
             d.slide(title, f"{title} 1", "", "")
         if not acc_first:
-            d.acceptance([CARD], [ROW], sources=SRC)     # 寫在最後也會被移到目錄後
+            d.acceptance([CARD], [ROW], sources=SRC)     # 寫在最後也會排在操作說明前面
         d.back_cover()
 
-    def test_moved_right_after_toc(self):
+    def test_before_manual_right_after_toc(self):
         for acc_first in (False, True):
             d = self.deck()
             self.body(d, acc_first)
@@ -63,13 +64,10 @@ class AcceptanceTests(unittest.TestCase):
             self.assertIn("acc-slide", c[2])
             self.assertEqual(sum("acc-slide" in x for x in c), 1)
 
-    def test_after_toc_false_keeps_order(self):
-        d = self.deck()
-        d.cover("x")
-        d.slide("開始之前", "前置", "", "")
-        d.acceptance([CARD], sources=SRC, after_toc=False)
-        c = self.classes(self.write(d)[0])
-        self.assertIn("acc-slide", c[3])
+    def test_only_when_selected(self):
+        d = self.deck(purposes=["操作說明"])
+        with self.assertRaisesRegex(ValueError, "沒選「測試報告」"):
+            d.acceptance([CARD], sources=SRC)
 
     def test_two_pages_keep_order_third_raises(self):
         d = self.deck()
@@ -105,10 +103,10 @@ class AcceptanceTests(unittest.TestCase):
         html, out = self.write(d)
         self.assertNotIn(SRC[0], html)
         self.assertIn(SRC[0], out)
-        self.assertIn("驗收數據", out)
+        self.assertIn("測試報告", out)
 
     def test_content_rendered(self):
-        d = self.deck()
+        d = self.deck(purposes=["測試報告"])                # 只選測試報告：單獨一份
         d.acceptance([CARD], [ROW], note="範圍：500 張發票", sources=SRC)
         html, _ = self.write(d)
         self.assertIn('<div class="v">98.2%</div>', html)
@@ -123,19 +121,19 @@ class AcceptanceTests(unittest.TestCase):
         html, _ = self.write(d)
         toc = re.search(r'class="slide toc-slide">(.*?)</section>', html, re.S).group(1)
         cols = re.findall(r'<div class="toc-col">(.*?)</div>', toc, re.S)
-        self.assertEqual(len(cols), 4)                        # 驗收數據＋開始之前疊一欄，A／B／C 各一欄
+        self.assertEqual(len(cols), 4)                        # 測試報告＋開始之前疊一欄，A／B／C 各一欄
         heads = re.findall(r'<a class="toc-h( sub)?"[^>]*>.*?<b>([^<]*)</b>', cols[0])
-        self.assertEqual([h for _, h in heads], ["驗收數據", "開始之前"])
+        self.assertEqual([h for _, h in heads], ["測試報告", "開始之前"])
         self.assertEqual(heads[1][0], " sub")
         self.assertIn('href="#p03"', cols[0])
 
     def test_no_acceptance_no_section(self):
-        d = self.deck()
+        d = self.deck(purposes=["操作說明"])
         d.cover("x")
         d.slide("開始之前", "前置", "", "")
         html, out = self.write(d)
         self.assertFalse(any("acc-slide" in c for c in self.classes(html)))
-        self.assertNotIn("驗收數據", out)
+        self.assertNotIn("測試報告", out)
 
 
 if __name__ == "__main__":

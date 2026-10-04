@@ -27,7 +27,7 @@ class TocTests(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
 
     def deck(self):
-        return dk.Deck(tenant="展示公司", app="客服後台", shots=self.tmp / "shots", made="2026-09-29")
+        return dk.Deck(tenant="展示公司", app="客服後台", purposes=["操作說明"], shots=self.tmp / "shots", made="2026-09-29")
 
     def write(self, d) -> str:
         with contextlib.redirect_stdout(io.StringIO()):

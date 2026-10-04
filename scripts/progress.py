@@ -1,30 +1,31 @@
 # -*- coding: utf-8 -*-
-"""交付通知：把這次交付組成一則可以直接貼給需求方的訊息，並在產出前檢查用語與安全（只用標準函式庫）。
+"""進度報告（FDE 給客戶，一週一則）：組成一則可以直接貼給客戶的文字訊息，產出前檢查用語與安全（只用標準函式庫）。
 
-一則訊息＝一次交付（輸入檔範本：templates/handoff.example.json、templates/handoff.rd.example.json）：
-  FDE → 客戶（audience: fde）  一週一次、涵蓋這週所有做好的事，週會前 48 小時交；會上只討論結果
-  RD → 需求方（audience: rd）   每次做完就交，通常一件事
-內容固定：做好了什麼／連結（交付站，問使用者）／每件事怎麼驗（各 1～5 步）／要對方決定的事（選填）／
-何時回覆「可以」或「不行」／不行回給誰、附什麼。
+Phase 0 使用者選了「進度報告」才用（references/progress-report.md）。輸入檔範本：templates/progress.example.json。
+一則涵蓋這週所有做好的事，週會前 48 小時交；會上只討論結果。內容固定：做好了什麼／連結（交付站，問使用者）／
+每件事怎麼驗（各 1～5 步）／要對方決定的事（選填）／何時回覆「可以」或「不行」／不行回給誰、附什麼。
+有助於說明時可以補畫面（items[].images）：訊息裡寫「附圖 N」，圖片照順序另外附上。
 with_ai＝true（每次問使用者：對方有沒有會用 AI 的人）→ 上下兩段：上段給人看，下段整段貼給對方的 AI
 照步驟測、照格式回報。
 
 用法：
-  python scripts/handoff.py handoff.json                       # 印出訊息；檢查不過 exit 1、不印訊息
-  python scripts/handoff.py handoff.json --ui disc/ui.json     # 畫面上的字（按鈕、分頁…）加進白名單
-  python scripts/handoff.py handoff.json --out 交付通知.txt     # 另存檔案
-  python scripts/handoff.py handoff.json --allow Shopee,momo   # 額外允許的英文詞
+  python scripts/progress.py progress.json                     # 印出訊息；檢查不過 exit 1、不印訊息
+  python scripts/progress.py progress.json --ui disc/ui.json   # 畫面上的字（按鈕、分頁…）加進白名單
+  python scripts/progress.py progress.json --out 進度報告.txt   # 另存檔案；附圖複製成「進度報告_附圖1.png」…
+  python scripts/progress.py progress.json --allow Shopee,momo # 額外允許的英文詞
 
 檢查（不過就 exit 1，逐條列出哪一句、哪個詞）：
   - 用語：開發用語、英文與縮寫、錯誤代碼、內部叫法。「」裡的字與網址不檢查（「」＝畫面上照抄的字）
-  - 安全：步驟不能有刪資料、對外發訊息、付款的動作；訊息不能有帳號密碼、金鑰、帶金鑰的網址
-  - 格式：欄位齊全、每件事 1～5 步、連結是網址、回覆期限不在過去
-提醒（印在 stderr，不擋）：FDE 離週會不到 48 小時、步驟一句太長、「」裡的字在畫面上找不到（有給 --ui 時）。
+  - 安全：步驟（做什麼與預期結果）不能有刪資料、對外發訊息、付款的動作；訊息不能有帳號密碼、金鑰、帶金鑰的網址
+  - 格式：欄位齊全、每件事 1～5 步、連結是網址、附圖檔案存在、回覆期限不在過去
+提醒（印在 stderr，不擋）：離週會不到 48 小時、整則超過 10 步、步驟一句太長、附圖要先過密鑰檢查、
+「」裡的字在畫面上找不到（有給 --ui 時）。
 """
 import argparse
 import datetime as _dt
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -62,9 +63,10 @@ SECRET = [
 ]
 URL_SECRET = re.compile(r"[?&#](?:token|access_token|key|api_key|pat|password|secret|sig)=", re.I)
 FIXED_QUOTES = {"可以", "不行", "通過", "不通過"}
+IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
-class HandoffError(Exception):
+class ProgressError(Exception):
     """輸入檔缺欄位或格式不對（不是用語問題）。"""
 
 
@@ -88,15 +90,7 @@ def parse_when(v, field):
             t = t.astimezone(TW).replace(tzinfo=None)
         return t, True
     except ValueError:
-        raise HandoffError(f"{field} 要寫成 YYYY-MM-DD 或 YYYY-MM-DD HH:MM：{v!r}")
-
-
-def add_workdays(d, n):
-    while n > 0:
-        d += _dt.timedelta(days=1)
-        if d.weekday() < 5:
-            n -= 1
-    return d
+        raise ProgressError(f"{field} 要寫成 YYYY-MM-DD 或 YYYY-MM-DD HH:MM：{v!r}")
 
 
 def _end_of(d):
@@ -104,27 +98,23 @@ def _end_of(d):
 
 
 def reply_deadline(cfg, now):
-    """回覆期限 (截止時間點, 顯示文字)：有寫 reply_by 就用；FDE → 週會開始前；RD → 今天起第 2 個工作日。
-    只寫日期＝那天結束前。"""
+    """回覆期限 (截止時間點, 顯示文字)：有寫 reply_by 就用，否則＝週會開始前。只寫日期＝那天結束前。"""
     if cfg.get("reply_by"):
         t, timed = parse_when(cfg["reply_by"], "reply_by")
         return (t, f"{fmt_date(t.date())}{t:%H:%M} 前") if timed else (_end_of(t.date()), f"{fmt_date(t.date())}前")
-    if cfg.get("audience") == "fde":
-        m, timed = parse_when(cfg["meeting"], "meeting")
-        return (m if timed else _end_of(m.date())), f"{fmt_date(m.date())}{f'{m:%H:%M} ' if timed else ''}週會前"
-    d = add_workdays(now.date(), 2)
-    return _end_of(d), f"{fmt_date(d)}前"
+    m, timed = parse_when(cfg["meeting"], "meeting")
+    return (m if timed else _end_of(m.date())), f"{fmt_date(m.date())}{f'{m:%H:%M} ' if timed else ''}週會前"
 
 
 def _need(obj, where, *keys):
     miss = [k for k in keys if not str(obj.get(k) or "").strip()]
     if miss:
-        raise HandoffError(f"{where}缺欄位：" + "、".join(miss))
+        raise ProgressError(f"{where}缺欄位：" + "、".join(miss))
 
 
 def _check_url(url, field="url"):
     if not URL.fullmatch(str(url or "")):
-        raise HandoffError(f"{field} 要是完整網址（https://…）：{url!r}")
+        raise ProgressError(f"{field} 要是完整網址（https://…）：{url!r}")
 
 
 def _num(n):
@@ -137,18 +127,19 @@ def _human_step(s):
     return f"{s['do']}，看到{s['expect']}就對了" if s.get("expect") else s["do"]
 
 
-def validate(cfg):
+def validate(cfg, base=None):
+    """base＝附圖路徑的起點（輸入檔所在資料夾）；None＝不檢查附圖檔案在不在。"""
     _need(cfg, "", "to", "url")
     _check_url(cfg["url"])
-    if cfg.get("audience") not in ("fde", "rd"):
-        raise HandoffError(f"audience 只能是 fde（FDE 給客戶）或 rd（RD 給需求方）：{cfg.get('audience')!r}")
-    if cfg.get("audience") == "fde" and not cfg.get("meeting"):
-        raise HandoffError("FDE 要填 meeting（這週週會的日期時間），回覆期限和 48 小時提醒都靠它")
+    if cfg.get("audience") not in (None, "fde"):
+        raise ProgressError(f"進度報告只給 FDE 用（FDE 給客戶，一週一則）：audience={cfg.get('audience')!r}")
+    if not cfg.get("meeting"):
+        raise ProgressError("要填 meeting（這週週會的日期時間）：回覆期限和 48 小時提醒都靠它")
     if not isinstance(cfg.get("with_ai"), bool):
-        raise HandoffError("with_ai 沒填：每次都要問使用者「對方有沒有會用 AI 的人」，再填 true 或 false（prompts.md §9）")
+        raise ProgressError("with_ai 沒填：每次都要問使用者「對方有沒有會用 AI 的人」，再填 true 或 false（prompts.md §9）")
     items = cfg.get("items") or []
     if not items:
-        raise HandoffError("items 是空的：至少要有一件做好的事")
+        raise ProgressError("items 是空的：至少要有一件做好的事")
     for n, it in enumerate(items, 1):
         where = f"items 第 {n} 項"
         _need(it, where, "feature")
@@ -156,20 +147,39 @@ def validate(cfg):
             _check_url(it["url"], f"{where} url")
         steps = it.get("steps") or []
         if not 1 <= len(steps) <= MAX_STEPS:
-            raise HandoffError(f"{where}（「{it['feature']}」）步驟要 1～{MAX_STEPS} 步，現在 {len(steps)} 步；"
+            raise ProgressError(f"{where}（「{it['feature']}」）步驟要 1～{MAX_STEPS} 步，現在 {len(steps)} 步；"
                                "太多就只留對方最在意的")
+        for img in it.get("images") or []:
+            if Path(str(img)).suffix.lower() not in IMAGE_EXT:
+                raise ProgressError(f"{where}附圖要是圖片（{'、'.join(sorted(IMAGE_EXT))}）：{img}")
+            if base is not None and not (Path(base) / img).is_file():
+                raise ProgressError(f"{where}附圖找不到：{img}（路徑從輸入檔所在資料夾算）")
         for i, s in enumerate(steps, 1):
             _need(s, f"{where}第 {i} 步", "do")
             if cfg["with_ai"] and not str(s.get("expect") or "").strip():
-                raise HandoffError(f"{where}第 {i} 步缺 expect：給 AI 的版本每一步都要寫預期看到什麼，AI 才能判斷通過或不通過")
+                raise ProgressError(f"{where}第 {i} 步缺 expect：給 AI 的版本每一步都要寫預期看到什麼，AI 才能判斷通過或不通過")
     for n, d in enumerate(cfg.get("decisions") or [], 1):
         _need(d, f"decisions 第 {n} 項", "ask")
     return items
 
 
-def compose(cfg, now):
+def images(cfg):
+    """附圖照訊息裡的編號排好：[(編號, 路徑)]。"""
+    out = []
+    for it in cfg.get("items") or []:
+        for img in it.get("images") or []:
+            out.append((len(out) + 1, img))
+    return out
+
+
+def compose(cfg, now, base=None):
     """回傳 parts＝[(標籤, 文字)]。"""
-    items = validate(cfg)
+    items = validate(cfg, base)
+    refs, k = [], 0
+    for it in items:
+        n = len(it.get("images") or [])
+        refs.append("、".join(f"附圖 {k + j + 1}" for j in range(n)))
+        k += n
     to, url, with_ai = cfg["to"], cfg["url"], cfg["with_ai"]
     decisions = cfg.get("decisions") or []
     reply_to = cfg.get("reply_to") or "我"
@@ -183,16 +193,19 @@ def compose(cfg, now):
     elif with_ai:                                     # 上段不列步驟，每件做了什麼要寫出來，人才能判斷是不是要的
         head = [f"{to}您好，這週做好了 {len(items)} 件事："]
         head += [f"{_num(n)}、「{it['feature']}」" + (f"：{it['done']}" if it.get("done") else "")
-                 for n, it in enumerate(items, 1)]
+                 + (f"（{refs[n - 1]}）" if refs[n - 1] else "") for n, it in enumerate(items, 1)]
     else:
         head = [f"{to}您好，這週做好了 {len(items)} 件事：{names}。"]
     head.append(f"連結：{url}")
+    if single and refs[0]:
+        head.append(f"畫面：{refs[0]}")
 
-    def heading(n, it):
+    def heading(n, it, for_ai=False):
         line = f"{_num(n)}、「{it['feature']}」"
-        if it.get("done") and not with_ai:
+        if it.get("done") and not for_ai:
             line += f"：{it['done']}"
-        return [line] + ([f"連結：{it['url']}"] if it.get("url") else [])
+        out = [line] + ([f"連結：{it['url']}"] if it.get("url") else [])
+        return out + ([f"畫面：{refs[n - 1]}"] if refs[n - 1] and not for_ai else [])
 
     dec = []
     if decisions:
@@ -218,7 +231,7 @@ def compose(cfg, now):
         ]
         for n, it in enumerate(items, 1):
             if not single:
-                lower += heading(n, it)
+                lower += heading(n, it, for_ai=True)
             elif it.get("url"):
                 lower.append(f"從這個網址開始：{it['url']}")
             lower += [f"{i}. {s['do']}。預期：{s['expect']}" for i, s in enumerate(it["steps"], 1)]
@@ -311,9 +324,7 @@ def lint(parts, cfg, allow=(), ui_strings=None):
 
 
 def timing_warnings(cfg, now):
-    """FDE 給客戶：週會前 48 小時要交。只寫日期時當作當天 00:00（從嚴）。"""
-    if cfg.get("audience") != "fde":
-        return []
+    """週會前 48 小時要交。只寫日期時當作當天 00:00（從嚴）。"""
     meeting, _ = parse_when(cfg["meeting"], "meeting")
     hours = (meeting - now).total_seconds() / 3600
     if hours <= 0:
@@ -324,15 +335,17 @@ def timing_warnings(cfg, now):
     return []
 
 
-def build(cfg, now=None, allow=(), ui_strings=None):
-    """組訊息＋檢查。回傳 (message, errors, warnings)。"""
+def build(cfg, now=None, allow=(), ui_strings=None, base=None):
+    """組訊息＋檢查。回傳 (message, errors, warnings)。附圖清單用 images(cfg)。"""
     now = now or now_tw()
-    parts = compose(cfg, now)
+    parts = compose(cfg, now, base)
     errors, warns = lint(parts, cfg, allow, ui_strings)
     deadline, due = reply_deadline(cfg, now)
     if deadline <= now:
         errors.append(f"回覆期限 {due} 已經過了")
     warns = timing_warnings(cfg, now) + warns
+    if images(cfg):
+        warns.append("有附圖：送出前逐張確認沒有密碼、金鑰、客人個資（workflow.md G2）")
     message = f"\n\n{SEP}\n\n".join(text for _, text in parts)
     return message, errors, warns
 
@@ -343,8 +356,8 @@ def main(argv=None):
             s.reconfigure(encoding="utf-8")
         except AttributeError:
             pass
-    ap = argparse.ArgumentParser(description="交付通知：組訊息＋用語與安全檢查")
-    ap.add_argument("input", help="輸入 JSON（templates/handoff.example.json）")
+    ap = argparse.ArgumentParser(description="進度報告：組訊息＋用語與安全檢查")
+    ap.add_argument("input", help="輸入 JSON（templates/progress.example.json）")
     ap.add_argument("--ui", help="discover.mjs 的 ui.json：畫面上的字加進白名單")
     ap.add_argument("--allow", default="", help="額外允許的英文詞，逗號分隔")
     ap.add_argument("--out", help="訊息另存成這個檔案")
@@ -358,8 +371,9 @@ def main(argv=None):
             ui_strings, ui_words = ui_vocab(a.ui)
             allow += list(ui_words)
         now = parse_when(a.now, "--now")[0] if a.now else None
-        message, errors, warns = build(cfg, now, allow, ui_strings)
-    except (HandoffError, json.JSONDecodeError, OSError) as e:
+        base = Path(a.input).resolve().parent
+        message, errors, warns = build(cfg, now, allow, ui_strings, base)
+    except (ProgressError, json.JSONDecodeError, OSError) as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
     for w in warns:
@@ -370,9 +384,21 @@ def main(argv=None):
             print(f"  - {e}", file=sys.stderr)
         return 1
     print(message)
-    if a.out:
-        Path(a.out).write_text(message + "\n", encoding="utf-8")
-        print(f"→ {a.out}", file=sys.stderr)
+    imgs = images(cfg)
+    if imgs:
+        print("附圖（照編號附上）：", file=sys.stderr)
+    out = Path(a.out) if a.out else None
+    if out:
+        out.write_text(message + "\n", encoding="utf-8")
+        print(f"→ {out}", file=sys.stderr)
+    for n, img in imgs:
+        src = base / img
+        if out:
+            dst = out.with_name(f"{out.stem}_附圖{n}{src.suffix.lower()}")
+            shutil.copyfile(src, dst)
+            print(f"  附圖 {n}：{img} → {dst}", file=sys.stderr)
+        else:
+            print(f"  附圖 {n}：{src}", file=sys.stderr)
     return 0
 
 
