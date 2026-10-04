@@ -6,6 +6,10 @@
 
 適用：客服後台、CRM、POS、ERP 等任何掛在 AI GO runtime 或 developer 預覽頁的 app。
 
+另含**交付通知**：做完一件事，產出一則可以直接貼給需求方的五段訊息（做好了什麼／在哪看／怎麼驗／
+何時回覆／不行回給誰），自動擋掉開發用語與危險步驟；需求方有 AI 時分上下兩段，下段給對方的 AI 照步驟測。
+每週另有薄版。見 [references/handoff.md](references/handoff.md)。
+
 ## 安裝
 
 ```bash
@@ -100,6 +104,13 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 ## 用法
 
 見 [SKILL.md](SKILL.md) 的「快速開始」。完整流程與關卡在 [references/workflow.md](references/workflow.md)。
+
+交付通知：
+
+```bash
+cp templates/handoff.example.json handoff.json     # 週報：handoff.weekly.example.json
+python scripts/handoff.py handoff.json             # 檢查沒過 exit 1，列出哪一句、哪個詞
+```
 
 ## 產出長什麼樣
 
