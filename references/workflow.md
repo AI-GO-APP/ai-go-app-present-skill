@@ -128,8 +128,8 @@ P5 寫內容 ══G3 說法查證══► P6 排版輸出 ══G4 逐頁目�
 ## P6 排版輸出 → G4
 
 ```bash
-python deck_content.py                       # →「AI GO 租戶名 App名 YYYYMMDD.html」
-node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF
+python deck_content.py                       # →「AI GO 租戶名 App名 用途 YYYYMMDD.html」
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 用途 YYYYMMDD.html" --png preview   # 同名 PDF
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label
 ```
 
@@ -149,7 +149,7 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 
 ## P7 交付與收尾
 
-- 用 SendUserFile 把 PDF 給使用者（display: attach）；檔名必須是「AI GO 租戶名 App名 YYYYMMDD.pdf」
+- 用 SendUserFile 把 PDF 給使用者（display: attach）；檔名必須是「AI GO 租戶名 App名 用途 YYYYMMDD.pdf」
 - **交付前確認大小 < 20 MB**（`python <skill>/scripts/compress_pdf.py "…pdf" --check` 也會確認是獨立檔案）。
   壓縮後仍超過（`render.mjs`／`compress_pdf.py` exit 2）→ **停下來問使用者**，一句話講大小與原因，給三個選項：
 

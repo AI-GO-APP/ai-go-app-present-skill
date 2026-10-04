@@ -112,13 +112,13 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 
 ```bash
 cp templates/progress.example.json progress.json
-python scripts/progress.py progress.json --out 進度報告.txt   # 檢查沒過 exit 1，列出哪一句、哪個詞
+python scripts/progress.py progress.json --out "AI GO 租戶名 App名 進度報告 YYYYMMDD.txt"   # 檢查沒過 exit 1
 ```
 
 ## 產出長什麼樣
 
 - 樣式：AI GO 品牌 B2B 母版（深底封面押製作日、每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底）
-- 檔名：`AI GO 租戶名 App名 YYYYMMDD.pdf`（租戶名與 App 名自動取得）
+- 檔名：`AI GO 租戶名 App名 用途 YYYYMMDD.pdf`（租戶名與 App 名自動取得；多選的用途用「・」串，例 `功能展示・操作說明`）
 - 獨立檔案、小於 20 MB：圖片與字型全部內嵌；超過自動整份壓縮，壓到底仍超過會先問你要不要照樣交付
 - 封面（標題依用途）→ **目錄**（自動產生、頁碼可點、PDF 附書籤）→ 功能展示 → 測試報告 → 操作說明（只出選了的）
 - 操作說明：後台地圖 → 前置設定

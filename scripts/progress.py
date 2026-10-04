@@ -11,7 +11,7 @@ with_ai＝true（每次問使用者：對方有沒有會用 AI 的人）→ 上�
 用法：
   python scripts/progress.py progress.json                     # 印出訊息；檢查不過 exit 1、不印訊息
   python scripts/progress.py progress.json --ui disc/ui.json   # 畫面上的字（按鈕、分頁…）加進白名單
-  python scripts/progress.py progress.json --out 進度報告.txt   # 另存檔案；附圖複製成「進度報告_附圖1.png」…
+  python scripts/progress.py progress.json --out "AI GO 租戶 App 進度報告 20261004.txt"   # 另存；附圖複製成同名加「_附圖1.png」…
   python scripts/progress.py progress.json --allow Shopee,momo # 額外允許的英文詞
 
 檢查（不過就 exit 1，逐條列出哪一句、哪個詞）：

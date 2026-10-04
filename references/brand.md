@@ -52,7 +52,11 @@
 
 ## 檔名
 
-**「AI GO 租戶名 App名 YYYYMMDD」**，PDF 與 HTML 同名。例：`AI GO 展示股份有限公司 Shopline 電商智能客服展示 20260928.pdf`
+**「AI GO 租戶名 App名 用途 YYYYMMDD」**，PDF 與 HTML 同名。例：`AI GO 展示股份有限公司 Shopline 電商智能客服展示 操作說明 20260928.pdf`
+
+- 用途：Phase 0 選的 PDF 類用途，依「功能展示 → 測試報告 → 操作說明」順序用「・」串
+  （例：`… 功能展示・測試報告・操作說明 20261004.pdf`）。同一天分開產不同用途也不會撞名；`Deck` 依 `purposes` 自動產生
+- 進度報告（文字訊息）存檔也照這個規則：`AI GO 租戶名 App名 進度報告 YYYYMMDD.txt`，附圖接「_附圖1.png」…
 
 - 租戶名：`/api/v1/auth/me` 的 `tenant_name`（`discover.mjs` 自動寫進 `disc/meta.json`）
 - App 名：平台上的 App 名稱（＝頁面標題去掉「 — AI GO」）

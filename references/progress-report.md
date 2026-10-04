@@ -15,7 +15,7 @@ Phase 0 選了「進度報告」才做。FDE 每週交付一次，產出一則**
 
 ```bash
 cp <skill>/templates/progress.example.json progress.json
-python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out 進度報告.txt]
+python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI GO 租戶名 App名 進度報告 YYYYMMDD.txt"]
 ```
 
 1. **問使用者兩件事**（每次都問，`prompts.md` §9；使用者這次已經說過的不再問）：
@@ -33,8 +33,9 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out 進�
 7. **回覆期限**：`meeting`（這週週會，必填，寫到時間：`2026-10-07 14:00`）；`reply_by` 沒寫＝週會開始前。
    只寫日期＝那天結束前。離週會不到 48 小時、或週會時間已過，腳本會提醒
 8. **跑 `progress.py`**：檢查沒過（exit 1）就照列出的句子改寫成白話後重跑，**不要**用 `--allow` 硬放行內部用語
-9. **交給使用者**：訊息原文貼在對話裡（code block，方便複製）；有附圖就用 `--out` 另存，附圖會複製成
-   「進度報告_附圖1.png」…，用 SendUserFile 一起給使用者。使用者自己貼給客戶，**不自動發送**
+9. **交給使用者**：訊息原文貼在對話裡（code block，方便複製）；有附圖就用 `--out` 另存，檔名照品牌規則
+   「AI GO 租戶名 App名 進度報告 YYYYMMDD.txt」（`brand.md`），附圖會複製成同名加「_附圖1.png」…，
+   用 SendUserFile 一起給使用者。使用者自己貼給客戶，**不自動發送**
 
 ## 訊息格式（腳本組，不要手寫）
 

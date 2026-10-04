@@ -4,7 +4,7 @@
 purposes 照 Phase 0 使用者選的填（PDF 類：功能展示／測試報告／操作說明）；沒選的用途，那段頁型整段刪掉。
 多選時內容頁自動排成「功能展示 → 測試報告 → 操作說明」，寫的順序不影響。
 
-執行：python deck_content.py → 「AI GO 租戶名 App名 YYYYMMDD.html」（目錄頁自動產生）
+執行：python deck_content.py → 「AI GO 租戶名 App名 用途 YYYYMMDD.html」（目錄頁自動產生）
       node <skill>/scripts/render.mjs --html "AI GO … .html" --png preview   → 同名 PDF（超過 20 MB 自動壓縮）
 樣式是 AI GO 品牌 B2B 母版（references/brand.md）：不要改色、不要自訂字體。
 """
