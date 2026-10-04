@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """交付通知：把這次交付組成一則可以直接貼給需求方的訊息，並在產出前檢查用語與安全（只用標準函式庫）。
 
-兩種訊息（輸入檔範本：templates/handoff.example.json、templates/handoff.weekly.example.json）：
-  notice  做完一件事就交。固定五段：做好了什麼／在哪裡看／驗什麼怎麼驗（≤ 5 步）／何時回覆／不行回給誰附什麼。
-          對方有「會用 AI 的人」且在測試站 → 上下兩段：上段給人看，下段整段貼給對方的 AI 照步驟測、照格式回報。
-  weekly  本週薄版：只放本週變動和要對方決定的事。
+一則訊息＝一次交付（輸入檔範本：templates/handoff.example.json、templates/handoff.rd.example.json）：
+  FDE → 客戶（audience: fde）  一週一次、涵蓋這週所有做好的事，週會前 48 小時交；會上只討論結果
+  RD → 需求方（audience: rd）   每次做完就交，通常一件事
+內容固定：做好了什麼／連結（交付站，問使用者）／每件事怎麼驗（各 1～5 步）／要對方決定的事（選填）／
+何時回覆「可以」或「不行」／不行回給誰、附什麼。
+with_ai＝true（每次問使用者：對方有沒有會用 AI 的人）→ 上下兩段：上段給人看，下段整段貼給對方的 AI
+照步驟測、照格式回報。
 
 用法：
   python scripts/handoff.py handoff.json                       # 印出訊息；檢查不過 exit 1、不印訊息
@@ -15,8 +18,8 @@
 檢查（不過就 exit 1，逐條列出哪一句、哪個詞）：
   - 用語：開發用語、英文與縮寫、錯誤代碼、內部叫法。「」裡的字與網址不檢查（「」＝畫面上照抄的字）
   - 安全：步驟不能有刪資料、對外發訊息、付款的動作；訊息不能有帳號密碼、金鑰、帶金鑰的網址
-  - 格式：五段齊全、步驟 1～5 步、連結是網址、回覆期限不在過去
-提醒（印在 stderr，不擋）：FDE 沒在週會前 2 天交、步驟一句太長、「」裡的字在畫面上找不到（有給 --ui 時）。
+  - 格式：欄位齊全、每件事 1～5 步、連結是網址、回覆期限不在過去
+提醒（印在 stderr，不擋）：FDE 離週會不到 48 小時、步驟一句太長、「」裡的字在畫面上找不到（有給 --ui 時）。
 """
 import argparse
 import datetime as _dt
@@ -27,8 +30,9 @@ from pathlib import Path
 
 TW = _dt.timezone(_dt.timedelta(hours=8))
 WEEKDAY = "一二三四五六日"
+NUM = "一二三四五六七八九十"
 MAX_STEPS = 5
-TEST_SITE, PROD_SITE = "測試站", "正式站"
+FDE_LEAD_HOURS = 48
 SEP = "———— 以下請整段複製，貼給您的 AI ————"
 
 # 不能出現的詞（「」裡與網址除外）。英文詞另有通則：不在白名單的英文一律擋
@@ -54,26 +58,31 @@ SECRET = [
     (re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_\-]{32,}(?![A-Za-z0-9])"), "像金鑰的長字串"),
 ]
 URL_SECRET = re.compile(r"[?&#](?:token|access_token|key|api_key|pat|password|secret|sig)=", re.I)
+FIXED_QUOTES = {"可以", "不行", "通過", "不通過"}
 
 
 class HandoffError(Exception):
     """輸入檔缺欄位或格式不對（不是用語問題）。"""
 
 
-def today_tw():
-    return _dt.datetime.now(TW).date()
+def now_tw():
+    return _dt.datetime.now(TW).replace(tzinfo=None, second=0, microsecond=0)
 
 
 def fmt_date(d):
-    """2026-10-06 →「10/6（一）」。"""
+    """2026-10-06 →「10/6（二）」。"""
     return f"{d.month}/{d.day}（{WEEKDAY[d.weekday()]}）"
 
 
-def _date(v, field):
+def parse_when(v, field):
+    """「YYYY-MM-DD」或「YYYY-MM-DD HH:MM」→ (datetime, 有沒有寫時間)。"""
+    s = str(v).strip()
     try:
-        return _dt.date.fromisoformat(str(v))
+        if len(s) <= 10:
+            return _dt.datetime.combine(_dt.date.fromisoformat(s), _dt.time()), False
+        return _dt.datetime.fromisoformat(s.replace("T", " ")), True
     except ValueError:
-        raise HandoffError(f"{field} 要寫成 YYYY-MM-DD：{v!r}")
+        raise HandoffError(f"{field} 要寫成 YYYY-MM-DD 或 YYYY-MM-DD HH:MM：{v!r}")
 
 
 def add_workdays(d, n):
@@ -84,19 +93,22 @@ def add_workdays(d, n):
     return d
 
 
-def reply_deadline(cfg, today):
-    """回覆期限：有寫 reply_by 就用；FDE 有週會日 → 週會前一天；其他 → 今天起第 2 個工作日。"""
+def reply_deadline(cfg, now):
+    """回覆期限 (日期, 顯示文字)：有寫 reply_by 就用；FDE → 週會開始前；RD → 今天起第 2 個工作日。"""
     if cfg.get("reply_by"):
-        return _date(cfg["reply_by"], "reply_by")
-    if cfg.get("meeting"):
-        return _date(cfg["meeting"], "meeting") - _dt.timedelta(days=1)
-    return add_workdays(today, 2)
+        d = parse_when(cfg["reply_by"], "reply_by")[0].date()
+        return d, f"{fmt_date(d)}前"
+    if cfg.get("audience") == "fde":
+        m, timed = parse_when(cfg["meeting"], "meeting")
+        return m.date(), f"{fmt_date(m.date())}{f'{m:%H:%M} ' if timed else ''}週會前"
+    d = add_workdays(now.date(), 2)
+    return d, f"{fmt_date(d)}前"
 
 
-def _need(cfg, *keys):
-    miss = [k for k in keys if not str(cfg.get(k) or "").strip()]
+def _need(obj, where, *keys):
+    miss = [k for k in keys if not str(obj.get(k) or "").strip()]
     if miss:
-        raise HandoffError("缺欄位：" + "、".join(miss))
+        raise HandoffError(f"{where}缺欄位：" + "、".join(miss))
 
 
 def _check_url(url, field="url"):
@@ -110,89 +122,105 @@ def _human_step(s):
     return f"{s['do']}，看到{s['expect']}就對了" if s.get("expect") else s["do"]
 
 
-def compose_notice(cfg, today):
-    """回傳 (parts, notes)。parts＝[(標籤, 文字)]；notes＝給 RD 的提醒（不進訊息）。"""
-    _need(cfg, "to", "feature", "site", "url")
-    site = cfg["site"]
-    if site not in (TEST_SITE, PROD_SITE):
-        raise HandoffError(f"site 只能是「{TEST_SITE}」或「{PROD_SITE}」：{site!r}")
+def validate(cfg):
+    _need(cfg, "", "to", "url")
     _check_url(cfg["url"])
-    steps = cfg.get("steps") or []
-    if not 1 <= len(steps) <= MAX_STEPS:
-        raise HandoffError(f"步驟要 1～{MAX_STEPS} 步，現在 {len(steps)} 步；太多就拆成兩次交付，或只留對方最在意的")
-    for i, s in enumerate(steps, 1):
-        if not str(s.get("do") or "").strip():
-            raise HandoffError(f"第 {i} 步缺 do（要做什麼）")
-    notes = []
-    to, feature, url = cfg["to"], cfg["feature"], cfg["url"]
-    due = fmt_date(reply_deadline(cfg, today))
-    reply_to = cfg.get("reply_to") or "我"
-    done = cfg.get("done") or f"「{feature}」做好了"
-    helper = str(cfg.get("ai_helper") or "").strip()
-    use_ai = bool(helper) and site == TEST_SITE
-    if helper and not use_ai:
-        notes.append(f"對方有會用 AI 的人（{helper}），但這次在{PROD_SITE}：依安全規則只讓 AI 在{TEST_SITE}操作，所以只產出給人看的版本")
-    if use_ai and any(not s.get("expect") for s in steps):
-        raise HandoffError("給 AI 的版本每一步都要寫 expect（預期看到什麼），AI 才能判斷通過或不通過")
+    if cfg.get("audience") not in ("fde", "rd"):
+        raise HandoffError(f"audience 只能是 fde（FDE 給客戶）或 rd（RD 給需求方）：{cfg.get('audience')!r}")
+    if cfg.get("audience") == "fde" and not cfg.get("meeting"):
+        raise HandoffError("FDE 要填 meeting（這週週會的日期時間），回覆期限和 48 小時提醒都靠它")
+    if not isinstance(cfg.get("with_ai"), bool):
+        raise HandoffError("with_ai 沒填：每次都要問使用者「對方有沒有會用 AI 的人」，再填 true 或 false（prompts.md §9）")
+    items = cfg.get("items") or []
+    if not items:
+        raise HandoffError("items 是空的：至少要有一件做好的事")
+    for n, it in enumerate(items, 1):
+        where = f"items 第 {n} 項"
+        _need(it, where, "feature")
+        if it.get("url"):
+            _check_url(it["url"], f"{where} url")
+        steps = it.get("steps") or []
+        if not 1 <= len(steps) <= MAX_STEPS:
+            raise HandoffError(f"{where}（「{it['feature']}」）步驟要 1～{MAX_STEPS} 步，現在 {len(steps)} 步；"
+                               "太多就只留對方最在意的")
+        for i, s in enumerate(steps, 1):
+            _need(s, f"{where}第 {i} 步", "do")
+            if cfg["with_ai"] and not str(s.get("expect") or "").strip():
+                raise HandoffError(f"{where}第 {i} 步缺 expect：給 AI 的版本每一步都要寫預期看到什麼，AI 才能判斷通過或不通過")
+    for n, d in enumerate(cfg.get("decisions") or [], 1):
+        _need(d, f"decisions 第 {n} 項", "ask")
+    return items
 
-    head = [f"{to}您好，{done}，放在{site}。", f"連結：{url}"]
-    if use_ai:
-        upper = head + [
-            "下面那段請直接貼給您的 AI，它會幫您測完並回報結果。",
-            f"看完結果，請在 {due}前回我「可以」或「不行」。",
+
+def compose(cfg, now):
+    """回傳 parts＝[(標籤, 文字)]。"""
+    items = validate(cfg)
+    to, url, with_ai = cfg["to"], cfg["url"], cfg["with_ai"]
+    decisions = cfg.get("decisions") or []
+    reply_to = cfg.get("reply_to") or "我"
+    attach = cfg.get("attach") or "截圖"
+    due = reply_deadline(cfg, now)[1]
+    single = len(items) == 1
+    names = "、".join(f"「{it['feature']}」" for it in items)
+
+    if single:
+        head = [f"{to}您好，{items[0].get('done') or names + '做好了'}。"]
+    else:
+        head = [f"{to}您好，這週做好了 {len(items)} 件事：{names}。"]
+    head.append(f"連結：{url}")
+
+    def heading(n, it):
+        line = f"{NUM[n - 1] if n <= len(NUM) else n}、「{it['feature']}」"
+        if it.get("done") and not with_ai:
+            line += f"：{it['done']}"
+        return [line] + ([f"連結：{it['url']}"] if it.get("url") else [])
+
+    dec = []
+    if decisions:
+        dec.append("要請您決定的事：")
+        for n, d in enumerate(decisions, 1):
+            opts = d.get("options") or []
+            dec.append(f"{n}. {d['ask']}" + (f"（{'／'.join(opts)}）" if opts else ""))
+    ask = "「可以」或「不行」" if single else "每件事「可以」或「不行」"
+    if decisions:
+        ask += "，決定的事各回一個選擇"
+    which = "第幾步" if single else "哪件事第幾步"
+
+    if with_ai:
+        upper = head + ["下面那段請直接貼給您的 AI，它會幫您測完並回報結果。"] + dec + [
+            f"看完結果，請在 {due}回我{ask}。",
             f"不行的話，把 AI 的回報直接轉給{reply_to}就好，不用另外說明。",
         ]
+        target = f"「{items[0]['feature']}」功能" if single else f"下面 {len(items)} 個功能"
         lower = [
-            f"請幫我檢查{TEST_SITE}上的「{feature}」功能。網址：{url}",
-            f"規則：只在{TEST_SITE}操作；不要刪除任何資料，不要送出訊息給任何人。"
+            f"請幫我檢查{target}。網址：{url}",
+            "規則：只在這個網址上操作；不要刪除任何資料，不要送出訊息給任何人。"
             "請用我已經登入的瀏覽器操作；需要登入時停下來叫我，不要自己輸入帳號密碼。",
         ]
-        lower += [f"{i}. {s['do']}。預期：{s['expect']}" for i, s in enumerate(steps, 1)]
-        lower.append("請照這個格式回報：每一步寫「通過」或「不通過」；不通過的附截圖，寫你看到什麼。")
-        parts = [(f"上半段：給{to}看", "\n".join(upper)), (f"下半段：貼給{to}的 AI", "\n".join(lower))]
-    else:
-        attach = cfg.get("attach") or "截圖"
-        body = head + [f"麻煩您試 {len(steps)} 件事："]
+        for n, it in enumerate(items, 1):
+            if not single:
+                lower += heading(n, it)
+            elif it.get("url"):
+                lower.append(f"從這個網址開始：{it['url']}")
+            lower += [f"{i}. {s['do']}。預期：{s['expect']}" for i, s in enumerate(it["steps"], 1)]
+        each = "每一步" if single else "每個功能的每一步"
+        lower.append(f"請照這個格式回報：{each}寫「通過」或「不通過」；不通過的附截圖，寫你看到什麼。")
+        return [(f"上半段：給{to}看", "\n".join(upper)), (f"下半段：貼給{to}的 AI", "\n".join(lower))]
+
+    body = list(head)
+    if single:
+        steps = items[0]["steps"]
+        if items[0].get("url"):
+            body.append(f"從這裡開始：{items[0]['url']}")
+        body.append(f"麻煩您試 {len(steps)} 件事：")
         body += [f"{i}. {_human_step(s)}" for i, s in enumerate(steps, 1)]
-        body += [f"請在 {due}前回我「可以」或「不行」。",
-                 f"不行的話，{attach}傳給{reply_to}，說是第幾步就好。"]
-        parts = [(f"給{to}", "\n".join(body))]
-    return parts, notes
-
-
-def compose_weekly(cfg, today):
-    """本週薄版：本週變動＋要對方決定的事。"""
-    _need(cfg, "to")
-    changes = cfg.get("changes") or []
-    decisions = cfg.get("decisions") or []
-    if not changes and not decisions:
-        raise HandoffError("changes 和 decisions 都是空的：這週沒東西就不用發")
-    lines = [f"{cfg['to']}您好，這週的進度如下。"]
-    if changes:
-        lines.append("本週變動：")
-        for i, c in enumerate(changes, 1):
-            _need(c, "feature", "site")
-            if c["site"] not in (TEST_SITE, PROD_SITE):
-                raise HandoffError(f"changes 第 {i} 項 site 只能是「{TEST_SITE}」或「{PROD_SITE}」")
-            line = f"{i}. 「{c['feature']}」{c.get('status') or '做好了'}，放在{c['site']}"
-            if c.get("url"):
-                _check_url(c["url"], f"changes 第 {i} 項 url")
-                line += f"：{c['url']}"
-            if c.get("note"):
-                line += f"\n   {c['note']}"
-            lines.append(line)
-    due = fmt_date(reply_deadline(cfg, today))
-    reply_to = cfg.get("reply_to") or "我"
-    if decisions:
-        lines.append("要請您決定的事：")
-        for i, d in enumerate(decisions, 1):
-            _need(d, "ask")
-            opts = d.get("options") or []
-            lines.append(f"{i}. {d['ask']}" + (f"（{'／'.join(opts)}）" if opts else ""))
-        lines.append(f"請在 {due}前回覆{reply_to}，每一項回一個選擇就好。")
     else:
-        lines.append(f"這週沒有要您決定的事。測試站上的東西有問題，截圖傳給{reply_to}就好。")
-    return [(f"本週薄版：給{cfg['to']}", "\n".join(lines))], []
+        body.append("每件事請照下面試一次：")
+        for n, it in enumerate(items, 1):
+            body += heading(n, it)
+            body += [f"{i}. {_human_step(s)}" for i, s in enumerate(it["steps"], 1)]
+    body += dec + [f"請在 {due}回我{ask}。", f"不行的話，{attach}傳給{reply_to}，說是{which}就好。"]
+    return [(f"給{to}", "\n".join(body))]
 
 
 def ui_vocab(path):
@@ -218,6 +246,8 @@ def lint(parts, cfg, allow=(), ui_strings=None):
     """回傳 (errors, warnings)，每條都指出哪一段哪一行。"""
     errors, warns = [], []
     ok = ALLOW | {a.lower() for a in allow}
+    items = cfg.get("items") or []
+    features = {it.get("feature") for it in items}
     for label, text in parts:
         for line in text.splitlines():
             where = f"［{label}］{line.strip()}"
@@ -228,8 +258,9 @@ def lint(parts, cfg, allow=(), ui_strings=None):
                     if t.lower() in bare.lower():
                         errors.append(f"用語（{cat}）「{t}」：{where}")
                         hit.update(w.lower() for w in LATIN.findall(t))
-            if ERROR_CODES.search(bare):
-                errors.append(f"用語（錯誤代碼）「{ERROR_CODES.search(bare).group()}」：{where}")
+            m = ERROR_CODES.search(bare)
+            if m:
+                errors.append(f"用語（錯誤代碼）「{m.group()}」：{where}")
             for w in LATIN.findall(bare):
                 if w.lower() not in ok and w.lower() not in hit:
                     errors.append(f"用語（英文與縮寫）「{w}」：{where}")
@@ -241,43 +272,40 @@ def lint(parts, cfg, allow=(), ui_strings=None):
                     errors.append(f"安全（網址帶了金鑰或登入參數）：{u}")
             if ui_strings is not None:
                 for q in QUOTE.findall(line):
-                    if q and q not in ui_strings and q != cfg.get("feature") and q not in ("可以", "不行", "通過", "不通過"):
+                    if q and q not in ui_strings and q not in features and q not in FIXED_QUOTES:
                         warns.append(f"「{q}」在畫面上找不到，確認是畫面上的字（一字不差）：{where}")
-    steps = cfg.get("steps") or []
-    for i, s in enumerate(steps, 1):
-        text = f"{s.get('do', '')} {s.get('say', '')}"
-        m = DANGER.search(text)
-        if m:
-            errors.append(f"安全（步驟不能有刪資料、對外發訊息、付款的動作）「{m.group()}」：第 {i} 步 {text.strip()}")
-        if len(str(s.get("do") or "")) > 40:
-            warns.append(f"第 {i} 步太長，一句只講一個動作：{s['do']}")
+    for it in items:
+        for i, s in enumerate(it.get("steps") or [], 1):
+            text = f"{s.get('do', '')} {s.get('say', '')}"
+            m = DANGER.search(text)
+            if m:
+                errors.append(f"安全（步驟不能有刪資料、對外發訊息、付款的動作）「{m.group()}」："
+                              f"「{it.get('feature')}」第 {i} 步 {text.strip()}")
+            if len(str(s.get("do") or "")) > 40:
+                warns.append(f"「{it.get('feature')}」第 {i} 步太長，一句只講一個動作：{s['do']}")
     return list(dict.fromkeys(errors)), list(dict.fromkeys(warns))
 
 
-def timing_warnings(cfg, today):
-    """FDE 給客戶：週會前 2 天要交。"""
-    if cfg.get("audience") == "fde" and cfg.get("meeting"):
-        meeting = _date(cfg["meeting"], "meeting")
-        if (meeting - today).days < 2:
-            return [f"FDE 交付通知要在週會前 2 天交（週會 {fmt_date(meeting)}，今天 {fmt_date(today)}），會上才能只討論結果"]
+def timing_warnings(cfg, now):
+    """FDE 給客戶：週會前 48 小時要交。只寫日期時當作當天 00:00（從嚴）。"""
+    if cfg.get("audience") != "fde":
+        return []
+    meeting, _ = parse_when(cfg["meeting"], "meeting")
+    hours = (meeting - now).total_seconds() / 3600
+    if hours < FDE_LEAD_HOURS:
+        return [f"FDE 交付說明要在週會前 {FDE_LEAD_HOURS} 小時交（週會 {meeting:%m/%d %H:%M}，現在只剩約 {max(hours, 0):.0f} 小時），"
+                "對方來不及驗，會上就只能現場看"]
     return []
 
 
-def build(cfg, today=None, allow=(), ui_strings=None):
+def build(cfg, now=None, allow=(), ui_strings=None):
     """組訊息＋檢查。回傳 (message, errors, warnings)。"""
-    today = today or today_tw()
-    mode = cfg.get("mode") or "notice"
-    if mode == "notice":
-        parts, notes = compose_notice(cfg, today)
-    elif mode == "weekly":
-        parts, notes = compose_weekly(cfg, today)
-    else:
-        raise HandoffError(f"mode 只能是 notice 或 weekly：{mode!r}")
-    due = reply_deadline(cfg, today)
+    now = now or now_tw()
+    parts = compose(cfg, now)
     errors, warns = lint(parts, cfg, allow, ui_strings)
-    if due < today:
-        errors.append(f"回覆期限 {fmt_date(due)} 已經過了")
-    warns = notes + timing_warnings(cfg, today) + warns
+    if reply_deadline(cfg, now)[0] < now.date():
+        errors.append(f"回覆期限 {reply_deadline(cfg, now)[1]} 已經過了")
+    warns = timing_warnings(cfg, now) + warns
     message = f"\n\n{SEP}\n\n".join(text for _, text in parts)
     return message, errors, warns
 
@@ -293,7 +321,7 @@ def main(argv=None):
     ap.add_argument("--ui", help="discover.mjs 的 ui.json：畫面上的字加進白名單")
     ap.add_argument("--allow", default="", help="額外允許的英文詞，逗號分隔")
     ap.add_argument("--out", help="訊息另存成這個檔案")
-    ap.add_argument("--today", help="今天的日期（測試用，YYYY-MM-DD）")
+    ap.add_argument("--now", help="現在時間（測試用，YYYY-MM-DD 或 YYYY-MM-DD HH:MM）")
     a = ap.parse_args(argv)
     try:
         cfg = json.loads(Path(a.input).read_text(encoding="utf-8"))
@@ -302,8 +330,8 @@ def main(argv=None):
         if a.ui:
             ui_strings, ui_words = ui_vocab(a.ui)
             allow += list(ui_words)
-        today = _date(a.today, "--today") if a.today else None
-        message, errors, warns = build(cfg, today, allow, ui_strings)
+        now = parse_when(a.now, "--now")[0] if a.now else None
+        message, errors, warns = build(cfg, now, allow, ui_strings)
     except (HandoffError, json.JSONDecodeError, OSError) as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1

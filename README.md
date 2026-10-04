@@ -6,9 +6,9 @@
 
 適用：客服後台、CRM、POS、ERP 等任何掛在 AI GO runtime 或 developer 預覽頁的 app。
 
-另含**交付通知**：做完一件事，產出一則可以直接貼給需求方的五段訊息（做好了什麼／在哪看／怎麼驗／
+另含**交付通知**：交付時產出一則可以直接貼給需求方的訊息（做好了什麼／連結／怎麼驗／要決定的事／
 何時回覆／不行回給誰），自動擋掉開發用語與危險步驟；需求方有 AI 時分上下兩段，下段給對方的 AI 照步驟測。
-每週另有薄版。見 [references/handoff.md](references/handoff.md)。
+FDE 一週一則、週會前 48 小時交；RD 做完就交。見 [references/handoff.md](references/handoff.md)。
 
 ## 安裝
 
@@ -108,7 +108,7 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 交付通知：
 
 ```bash
-cp templates/handoff.example.json handoff.json     # 週報：handoff.weekly.example.json
+cp templates/handoff.example.json handoff.json     # FDE 週交付；RD 單次用 handoff.rd.example.json
 python scripts/handoff.py handoff.json             # 檢查沒過 exit 1，列出哪一句、哪個詞
 ```
 

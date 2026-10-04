@@ -1,0 +1,20 @@
+{
+  "_說明": "交付通知（scripts/handoff.py）：內部 RD 給需求方，做完就交。欄位說明見 handoff.example.json",
+  "audience": "rd",
+  "to": "王經理",
+  "url": "https://example.ai-go.app/runtime/order-center#/orders",
+  "with_ai": true,
+  "items": [
+    {
+      "feature": "訂單匯出",
+      "done": "您上週提的「訂單匯出」做好了",
+      "steps": [
+        {"do": "打開連結，登入後進「訂單」頁", "expect": "右上角有「匯出」按鈕"},
+        {"do": "月份選 9 月，按「匯出」", "expect": "下載一個檔案"},
+        {"do": "打開下載的檔案", "expect": "每筆都有日期和金額，筆數跟畫面上一樣"},
+        {"do": "月份改選 8 月，再按一次「匯出」", "expect": "檔案內容換成 8 月的訂單"}
+      ]
+    }
+  ],
+  "reply_by": "2026-10-06"
+}
