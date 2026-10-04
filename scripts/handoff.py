@@ -32,25 +32,28 @@ TW = _dt.timezone(_dt.timedelta(hours=8))
 WEEKDAY = "一二三四五六日"
 NUM = "一二三四五六七八九十"
 MAX_STEPS = 5
+TOTAL_STEPS_WARN = 10
 FDE_LEAD_HOURS = 48
 SEP = "———— 以下請整段複製，貼給您的 AI ————"
 
 # 不能出現的詞（「」裡與網址除外）。英文詞另有通則：不在白名單的英文一律擋
+# 清單照 issue #8；其他英文內部叫法（VFS、Server-Side Action…）由英文通則擋
 BANNED = {
-    "開發時才會碰到的詞": ["環境變數", "分支", "合併", "部署", "程式碼", "資料表", "欄位權限", "金鑰", "後端", "前端",
-                    "資料庫", "伺服器", "快取", "原始碼", "資料結構"],
-    "錯誤代碼": ["逾時", "錯誤代碼", "錯誤碼", "狀態碼"],
-    "我們內部的叫法": ["Hosted App", "Custom App", "資料代理", "VFS", "Server-Side Action", "資料中心"],
+    "開發時才會碰到的詞": ["環境變數", "分支", "合併", "部署", "程式碼", "資料表", "欄位權限", "金鑰"],
+    "錯誤代碼": ["逾時"],
+    "我們內部的叫法": ["Hosted App", "Custom App", "資料代理"],
 }
+# 含禁用詞的一般用語：先拿掉再檢查
+BANNED_OK = ["分支機構"]
 # 客戶平常也會講的英文
 ALLOW = {"ai", "app", "line", "email", "e-mail", "excel", "pdf", "csv", "google", "iphone", "android", "word", "ok"}
 ERROR_CODES = re.compile(r"(?<![\d/.:])(?:400|401|403|404|405|408|409|413|422|429|500|502|503|504)(?![\d/.%])"
-                         r"(?!\s*(?:筆|張|元|個|人|天|次|件|份|頁|行|字|分|秒|塊))")
+                         r"(?!\s*(?:筆|張|元|個|人|天|次|件|份|字|分|秒|塊))")
 LATIN = re.compile(r"[A-Za-z][A-Za-z0-9+\-]*")
 QUOTE = re.compile(r"「([^」]*)」")
 URL = re.compile(r"https?://[\x21-\x7e]+")
 # 步驟裡不能有的動作（「」裡也算：按「刪除」就是刪除）
-DANGER = re.compile(r"刪除|刪掉|移除|清空|作廢|封存|發送|寄出|寄信|推播|群發|發訊息|傳訊息|回覆客人|通知客人|付款|刷卡|退款|轉帳")
+DANGER = re.compile(r"刪除|刪掉|清空|作廢|發送|寄出|寄信|推播|群發|發訊息|傳訊息|回覆客人|通知客人|付款|刷卡|退款|轉帳")
 SECRET = [
     (re.compile(r"(密碼|帳密|password|passwd)\s*[:：=]\s*\S", re.I), "密碼"),
     (re.compile(r"(帳號|account|email)\s*[:：=]\s*\S+@\S+", re.I), "登入帳號"),
@@ -80,7 +83,10 @@ def parse_when(v, field):
     try:
         if len(s) <= 10:
             return _dt.datetime.combine(_dt.date.fromisoformat(s), _dt.time()), False
-        return _dt.datetime.fromisoformat(s.replace("T", " ")), True
+        t = _dt.datetime.fromisoformat(s.replace("T", " "))
+        if t.tzinfo:                                  # 帶時區 → 換成台灣時間再去掉時區
+            t = t.astimezone(TW).replace(tzinfo=None)
+        return t, True
     except ValueError:
         raise HandoffError(f"{field} 要寫成 YYYY-MM-DD 或 YYYY-MM-DD HH:MM：{v!r}")
 
@@ -93,16 +99,21 @@ def add_workdays(d, n):
     return d
 
 
+def _end_of(d):
+    return _dt.datetime.combine(d + _dt.timedelta(days=1), _dt.time())
+
+
 def reply_deadline(cfg, now):
-    """回覆期限 (日期, 顯示文字)：有寫 reply_by 就用；FDE → 週會開始前；RD → 今天起第 2 個工作日。"""
+    """回覆期限 (截止時間點, 顯示文字)：有寫 reply_by 就用；FDE → 週會開始前；RD → 今天起第 2 個工作日。
+    只寫日期＝那天結束前。"""
     if cfg.get("reply_by"):
-        d = parse_when(cfg["reply_by"], "reply_by")[0].date()
-        return d, f"{fmt_date(d)}前"
+        t, timed = parse_when(cfg["reply_by"], "reply_by")
+        return (t, f"{fmt_date(t.date())}{t:%H:%M} 前") if timed else (_end_of(t.date()), f"{fmt_date(t.date())}前")
     if cfg.get("audience") == "fde":
         m, timed = parse_when(cfg["meeting"], "meeting")
-        return m.date(), f"{fmt_date(m.date())}{f'{m:%H:%M} ' if timed else ''}週會前"
+        return (m if timed else _end_of(m.date())), f"{fmt_date(m.date())}{f'{m:%H:%M} ' if timed else ''}週會前"
     d = add_workdays(now.date(), 2)
-    return d, f"{fmt_date(d)}前"
+    return _end_of(d), f"{fmt_date(d)}前"
 
 
 def _need(obj, where, *keys):
@@ -114,6 +125,10 @@ def _need(obj, where, *keys):
 def _check_url(url, field="url"):
     if not URL.fullmatch(str(url or "")):
         raise HandoffError(f"{field} 要是完整網址（https://…）：{url!r}")
+
+
+def _num(n):
+    return NUM[n - 1] if n <= len(NUM) else str(n)
 
 
 def _human_step(s):
@@ -165,12 +180,16 @@ def compose(cfg, now):
 
     if single:
         head = [f"{to}您好，{items[0].get('done') or names + '做好了'}。"]
+    elif with_ai:                                     # 上段不列步驟，每件做了什麼要寫出來，人才能判斷是不是要的
+        head = [f"{to}您好，這週做好了 {len(items)} 件事："]
+        head += [f"{_num(n)}、「{it['feature']}」" + (f"：{it['done']}" if it.get("done") else "")
+                 for n, it in enumerate(items, 1)]
     else:
         head = [f"{to}您好，這週做好了 {len(items)} 件事：{names}。"]
     head.append(f"連結：{url}")
 
     def heading(n, it):
-        line = f"{NUM[n - 1] if n <= len(NUM) else n}、「{it['feature']}」"
+        line = f"{_num(n)}、「{it['feature']}」"
         if it.get("done") and not with_ai:
             line += f"：{it['done']}"
         return [line] + ([f"連結：{it['url']}"] if it.get("url") else [])
@@ -252,6 +271,8 @@ def lint(parts, cfg, allow=(), ui_strings=None):
         for line in text.splitlines():
             where = f"［{label}］{line.strip()}"
             bare = QUOTE.sub("「」", URL.sub("", line))
+            for phrase in BANNED_OK:
+                bare = bare.replace(phrase, "")
             hit = set()
             for cat, terms in BANNED.items():
                 for t in terms:
@@ -276,13 +297,16 @@ def lint(parts, cfg, allow=(), ui_strings=None):
                         warns.append(f"「{q}」在畫面上找不到，確認是畫面上的字（一字不差）：{where}")
     for it in items:
         for i, s in enumerate(it.get("steps") or [], 1):
-            text = f"{s.get('do', '')} {s.get('say', '')}"
+            text = " ".join(str(s.get(k) or "") for k in ("do", "say", "expect")).strip()
             m = DANGER.search(text)
             if m:
                 errors.append(f"安全（步驟不能有刪資料、對外發訊息、付款的動作）「{m.group()}」："
                               f"「{it.get('feature')}」第 {i} 步 {text.strip()}")
             if len(str(s.get("do") or "")) > 40:
                 warns.append(f"「{it.get('feature')}」第 {i} 步太長，一句只講一個動作：{s['do']}")
+    total = sum(len(it.get("steps") or []) for it in items)
+    if total > TOTAL_STEPS_WARN:
+        warns.append(f"總共 {total} 步，超過 {TOTAL_STEPS_WARN} 步對方不容易做完：每件只留最關鍵的步驟，或把次要的事移到下週")
     return list(dict.fromkeys(errors)), list(dict.fromkeys(warns))
 
 
@@ -292,6 +316,8 @@ def timing_warnings(cfg, now):
         return []
     meeting, _ = parse_when(cfg["meeting"], "meeting")
     hours = (meeting - now).total_seconds() / 3600
+    if hours <= 0:
+        return [f"週會時間 {meeting:%m/%d %H:%M} 已經過了：確認 meeting 填的是這週的週會"]
     if hours < FDE_LEAD_HOURS:
         return [f"FDE 交付說明要在週會前 {FDE_LEAD_HOURS} 小時交（週會 {meeting:%m/%d %H:%M}，現在只剩約 {max(hours, 0):.0f} 小時），"
                 "對方來不及驗，會上就只能現場看"]
@@ -303,8 +329,9 @@ def build(cfg, now=None, allow=(), ui_strings=None):
     now = now or now_tw()
     parts = compose(cfg, now)
     errors, warns = lint(parts, cfg, allow, ui_strings)
-    if reply_deadline(cfg, now)[0] < now.date():
-        errors.append(f"回覆期限 {reply_deadline(cfg, now)[1]} 已經過了")
+    deadline, due = reply_deadline(cfg, now)
+    if deadline <= now:
+        errors.append(f"回覆期限 {due} 已經過了")
     warns = timing_warnings(cfg, now) + warns
     message = f"\n\n{SEP}\n\n".join(text for _, text in parts)
     return message, errors, warns

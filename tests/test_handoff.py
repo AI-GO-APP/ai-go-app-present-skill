@@ -145,6 +145,8 @@ class WeeklyTests(unittest.TestCase):
         msg, errors, _ = build(fde(with_ai=True, decisions=[{"ask": "要不要加電話？"}]))
         self.assertEqual(errors, [])
         upper, lower = msg.split(ho.SEP)
+        self.assertIn("這週做好了 2 件事：\n一、「訂單匯出」\n二、「客人電話遮蔽」：電話只顯示後三碼\n連結：", upper)
+        self.assertNotIn("預期：", upper)
         self.assertIn("要請您決定的事", upper)              # 決定的事給人，不給 AI
         self.assertNotIn("要請您決定的事", lower)
         self.assertIn("請幫我檢查下面 2 個功能", lower)
@@ -166,14 +168,26 @@ class DeadlineTests(unittest.TestCase):
     def test_defaults(self):
         c = rd()
         del c["reply_by"]
-        self.assertEqual(ho.reply_deadline(c, NOW), (dt.date(2026, 10, 6), "10/6（二）前"))   # 週日起第 2 個工作日
-        self.assertEqual(ho.reply_deadline(fde(), NOW), (dt.date(2026, 10, 7), "10/7（三）14:00 週會前"))
+        self.assertEqual(ho.reply_deadline(c, NOW), (dt.datetime(2026, 10, 7), "10/6（二）前"))   # 週日起第 2 個工作日，當天結束前
+        self.assertEqual(ho.reply_deadline(fde(), NOW), (dt.datetime(2026, 10, 7, 14), "10/7（三）14:00 週會前"))
         self.assertEqual(ho.reply_deadline(fde(meeting="2026-10-07"), NOW)[1], "10/7（三）週會前")
         self.assertEqual(ho.reply_deadline(fde(reply_by="2026-10-06"), NOW)[1], "10/6（二）前")
+        self.assertEqual(ho.reply_deadline(rd(reply_by="2026-10-06 18:00"), NOW), (dt.datetime(2026, 10, 6, 18), "10/6（二）18:00 前"))
+
+    def test_timezone(self):
+        m, timed = ho.parse_when("2026-10-07T06:00:00+00:00", "meeting")
+        self.assertEqual((m, timed), (dt.datetime(2026, 10, 7, 14, 0), True))
+        _, errors, _ = build(fde(meeting="2026-10-07T14:00:00+08:00"))
+        self.assertEqual(errors, [])
 
     def test_past_deadline_is_error(self):
         _, errors, _ = build(rd(reply_by="2026-10-01"))
         self.assertTrue(any("已經過了" in e for e in errors))
+        self.assertEqual(build(rd(reply_by="2026-10-04"))[1], [])                     # 只寫日期＝當天結束前
+        _, errors, warns = build(fde(), now=dt.datetime(2026, 10, 7, 16, 0))         # 週會當天已開過
+        self.assertTrue(any("已經過了" in e for e in errors))
+        _, errors, warns = build(fde(reply_by="2026-10-09"), now=dt.datetime(2026, 10, 7, 16, 0))
+        self.assertTrue(any("確認 meeting" in w for w in warns))
 
     def test_fde_48_hours(self):
         warn = lambda now: any("48 小時" in w for w in build(fde(), now=now)[2])
@@ -196,12 +210,14 @@ class WordingTests(unittest.TestCase):
         self.assertTrue(any("我們內部的叫法" in e for e in self.errs("Custom App 改好了")))
 
     def test_english_and_codes(self):
-        for text in ("API 改好了", "hotfix 上了", "UAT 準備好了", "token 換好了", "不會再 404 了", "修好 503"):
+        for text in ("API 改好了", "hotfix 上了", "UAT 準備好了", "token 換好了", "不會再 404 了", "修好 503",
+                     "不會再跳 404 頁面", "VFS 更新了", "分支合併了"):
             with self.subTest(text=text):
                 self.assertTrue(self.errs(text), text)
 
     def test_allowed_words(self):
-        for text in ("「訂單匯出」做好了，可以匯出 Excel", "LINE 通知改好了", "可以下載 500 筆", "9 月的報表做好了"):
+        for text in ("「訂單匯出」做好了，可以匯出 Excel", "LINE 通知改好了", "可以下載 500 筆", "9 月的報表做好了",
+                     "可以選分支機構", "資料中心的表可以匯出"):
             with self.subTest(text=text):
                 self.assertEqual(self.errs(text), [], text)
 
@@ -238,6 +254,23 @@ class SafetyTests(unittest.TestCase):
                 c = fde()
                 c["items"][1]["steps"][0]["do"] = do
                 self.assertTrue(any(e.startswith("安全") for e in build(c)[1]), do)
+
+    def test_danger_in_expect(self):
+        c = fde()
+        c["items"][1]["steps"][0] = {"do": "按「儲存」", "expect": "客人手機收到 LINE 推播"}
+        self.assertTrue(any("「推播」" in e for e in build(c)[1]))
+
+    def test_harmless_actions_pass(self):
+        c = fde()
+        c["items"][1]["steps"][0]["do"] = "按「移除」把篩選條件拿掉"
+        self.assertEqual(build(c)[1], [])
+
+    def test_total_steps_warning(self):
+        many = {"feature": "很多步", "steps": [{"do": f"第 {i} 步", "expect": "沒問題"} for i in range(5)]}
+        c = fde()
+        c["items"] += [copy.deepcopy(many), copy.deepcopy(many)]       # 2 + 1 + 5 + 5 = 13 步
+        self.assertTrue(any("總共 13 步" in w for w in build(c)[2]))
+        self.assertFalse(any("總共" in w for w in build(fde())[2]))
 
     def test_secrets(self):
         for done in ("做好了，密碼：abc123", "做好了，帳號：wang@example.com",
