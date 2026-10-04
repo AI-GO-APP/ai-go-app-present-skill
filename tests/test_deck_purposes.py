@@ -121,6 +121,22 @@ class PurposeTests(unittest.TestCase):
         self.assertIn("選要匯出的月份", html)
         self.assertNotIn('class="howto"', html)                # 沒選操作說明：目錄不放讀法列
 
+    def test_filename_has_purposes(self):
+        self.assertEqual(self.deck("操作說明").filename(), "AI GO 展示公司 發票辨識 操作說明 20261004.pdf")
+        self.assertEqual(self.deck("操作說明", "功能展示").filename(".html"),
+                         "AI GO 展示公司 發票辨識 功能展示・操作說明 20261004.html")
+        self.assertEqual(self.deck("操作說明", "測試報告", "功能展示").filename(""),
+                         "AI GO 展示公司 發票辨識 功能展示・測試報告・操作說明 20261004")
+        self.assertNotEqual(self.deck("功能展示").filename(), self.deck("操作說明").filename())   # 同一天不撞名
+        d = self.deck("測試報告")
+        d.acceptance([CARD], sources=SRC)
+        with contextlib.redirect_stdout(io.StringIO()):
+            out = d.write()                                    # 不給路徑＝照檔名規則
+        self.addCleanup(out.unlink)
+        self.assertEqual(out.name, "AI GO 展示公司 發票辨識 測試報告 20261004.html")
+        self.assertIn("<title>AI GO 展示公司 發票辨識 測試報告 20261004</title>", out.read_text(encoding="utf-8"))
+        self.assertEqual(dk.deck_filename("租戶", "App", dk._dt.date(2026, 10, 4)), "AI GO 租戶 App 20261004.pdf")
+
     def test_howto_only_with_manual(self):
         d = self.deck("操作說明")
         d.slide("開始之前", "前置", "", "")

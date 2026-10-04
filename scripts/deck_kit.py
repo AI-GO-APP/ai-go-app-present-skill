@@ -6,7 +6,7 @@
     from deck_kit import Deck
     d = Deck.from_meta("disc/meta.json", purposes=["操作說明"], shots="shots", version="VFS v12")
     d.cover(...); d.slide(part, title, lede, body); ...; d.back_cover(...)
-    html = d.write()          # →「AI GO 租戶名 App名 YYYYMMDD.html」，PDF 同名
+    html = d.write()          # →「AI GO 租戶名 App名 用途 YYYYMMDD.html」，PDF 同名
 
 purposes＝Phase 0 使用者選的用途（PDF 類：功能展示／測試報告／操作說明，至少一種；進度報告是文字訊息，
 用 scripts/progress.py）。多選合成一份 PDF，內容頁依「功能展示 → 測試報告 → 操作說明」排：
@@ -44,10 +44,12 @@ ACC_MAX_PAGES, ACC_MAX_CARDS, ACC_MAX_ROWS = 2, 4, 8
 ACC_HEAD = ("指標", "定義", "結果", "樣本", "測試日期")
 
 
-def deck_filename(tenant, app, made, ext=".pdf"):
-    """檔名規則：「AI GO 租戶名 App名 YYYYMMDD」。檔名不能用的字元換成底線。"""
+def deck_filename(tenant, app, made, ext=".pdf", purposes=()):
+    """檔名規則：「AI GO 租戶名 App名 用途 YYYYMMDD」。用途照 Phase 0 選的、依固定順序用「・」串
+    （例：功能展示・操作說明），同一天分開產不同用途也不會撞名。檔名不能用的字元換成底線。"""
     clean = lambda t: "".join("_" if ch in _BAD else ch for ch in str(t)).strip()
-    return f"AI GO {clean(tenant)} {clean(app)} {made:%Y%m%d}{ext}"
+    use = "・".join(p for p in DECK_ORDER if p in purposes)
+    return f"AI GO {clean(tenant)} {clean(app)} {use + ' ' if use else ''}{made:%Y%m%d}{ext}"
 
 
 class Deck:
@@ -104,7 +106,7 @@ class Deck:
         return f"{self.app} {self.title}"
 
     def filename(self, ext=".pdf"):
-        return deck_filename(self.tenant, self.app, self.made, ext)
+        return deck_filename(self.tenant, self.app, self.made, ext, self.purposes)
 
     # ───────────── 元件 ─────────────
     def shot(self, name, maxw, maxh=None, marks=True, cls="", frame=None):
@@ -454,7 +456,7 @@ class Deck:
 
     # ───────────── 輸出 ─────────────
     def write(self, out=None):
-        """輸出 HTML；out 省略＝依檔名規則「AI GO 租戶名 App名 YYYYMMDD.html」。PDF 用同名 .pdf。
+        """輸出 HTML；out 省略＝依檔名規則「AI GO 租戶名 App名 用途 YYYYMMDD.html」。PDF 用同名 .pdf。
         目錄頁一定會產生（沒呼叫 toc() 就自動插在封面後面）。每頁帶 id="pNN"，目錄可點跳頁。"""
         out = Path(out or self.filename(".html")).resolve()
         self._src = os.path.relpath(self.shots, out.parent).replace("\\", "/")

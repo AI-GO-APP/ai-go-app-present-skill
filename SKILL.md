@@ -23,7 +23,8 @@ description: >
 PDF 類（操作說明／測試報告／功能展示）多選時**合成一份**，順序固定：功能展示 → 測試報告 → 操作說明。
 
 **樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、**封面後一定是目錄頁**、
-每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
+每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 用途 YYYYMMDD」**（PDF 與 HTML 同名；用途照選的、依固定順序用「・」串，
+例：`AI GO 展示公司 訂單中心 功能展示・操作說明 20261004.pdf`；進度報告存檔也照這個規則）。
 **交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
@@ -116,8 +117,8 @@ node <skill>/scripts/shoot.mjs --config present.config.json [群組…]      # P
 python <skill>/scripts/contact_sheet.py "shots/*.png" --out disc/sheet   # G2：逐張看
 python <skill>/scripts/prep_state.py restore --table …                   # 還原
 cp <skill>/templates/deck_content.example.py deck_content.py             # P5：改 SKILL 路徑、purposes 後照大綱寫
-python deck_content.py                                                   # →「AI GO 租戶名 App名 YYYYMMDD.html」
-node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF；> 20 MB 自動壓縮
+python deck_content.py                                                   # →「AI GO 租戶名 App名 用途 YYYYMMDD.html」
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 用途 YYYYMMDD.html" --png preview   # 同名 PDF；> 20 MB 自動壓縮
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label   # G4
 ```
 
@@ -125,7 +126,7 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 
 ```bash
 cp <skill>/templates/progress.example.json progress.json
-python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out 進度報告.txt]
+python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI GO 租戶名 App名 進度報告 YYYYMMDD.txt"]
 ```
 
 ## 核心原則

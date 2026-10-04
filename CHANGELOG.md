@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.0 — 2026-10-04
+
+**行為變更**：PDF／HTML 檔名加上用途。之前照舊檔名寫好的 `render.mjs --html "…"` 指令要換成 `write()` 印出的新檔名。
+
+### 檔名加上用途
+
+- 規則改為 **「AI GO 租戶名 App名 用途 YYYYMMDD」**：用途照 Phase 0 選的 PDF 類，依「功能展示 → 測試報告 → 操作說明」
+  用「・」串。例：`AI GO 展示公司 訂單中心 功能展示・操作說明 20261004.pdf`。同一天分開產不同用途不會再撞名
+- `deck_filename(tenant, app, made, ext, purposes=())`；`Deck.filename()`／`write()` 依 `purposes` 自動帶入，HTML `<title>` 同步
+- 進度報告存檔建議同一規則：`AI GO 租戶名 App名 進度報告 YYYYMMDD.txt`，附圖接「_附圖1.png」…
+- 文件：SKILL.md、`brand.md`「檔名」、`workflow.md`、`progress-report.md`、README、範本與腳本說明
+- 測試：`test_deck_purposes.py` 加檔名測試（單選、多選順序、同日不撞名、`write()` 預設路徑與 `<title>`）；共 116 項
+
 ## 0.10.0 — 2026-10-04
 
 ⚠️ **破壞性**：(1) `Deck(...)`／`Deck.from_meta(...)` 必須給 `purposes=[…]`（舊的 deck_content.py 加上

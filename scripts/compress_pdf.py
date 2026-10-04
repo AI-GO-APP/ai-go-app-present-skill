@@ -2,7 +2,7 @@
 """整份 PDF 壓縮：超過上限（預設 20 MB）時縮小檔案，並驗證成品是可以單獨寄出的獨立檔案。
 
 用法：
-    python scripts/compress_pdf.py "AI GO 租戶名 App名 YYYYMMDD.pdf"            # 超過 20 MB 才壓
+    python scripts/compress_pdf.py "AI GO 租戶名 App名 用途 YYYYMMDD.pdf"            # 超過 20 MB 才壓
     python scripts/compress_pdf.py 手冊.pdf --max-mb 15 --keep-original disc     # 自訂上限、原檔存哪
     python scripts/compress_pdf.py 手冊.pdf --check                              # 只做獨立性檢查，不壓
     python scripts/compress_pdf.py 手冊.pdf --json                               # 機器可讀結果
