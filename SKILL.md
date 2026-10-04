@@ -6,8 +6,8 @@ description: >
   閱讀式簡報 PDF）。抓重點功能 → 規劃結構並經使用者核准 → 登入真實後台截圖（全頁圖解＋局部操作）→
   查證每個參數「情境 → 結果」→ 產出 16:9 閱讀式簡報 PDF。含可重跑的截圖、排版、渲染腳本與提示詞。
   Also use when a feature is delivered and the requester needs a next-step message（交付通知、給需求方的訊息、
-  跟客戶說做好了、本週薄版／週報）：產出可直接貼給需求方的五段訊息（做好了什麼／在哪看／怎麼驗／何時回覆／
-  不行回給誰），檢查用語與安全；對方有 AI 時分上下兩段。
+  跟客戶說做好了、這週給客戶的說明）：產出可直接貼給需求方的訊息（做好了什麼／連結／怎麼驗／要決定的事／
+  何時回覆／不行回給誰），檢查用語與安全；FDE 一週一則、週會前 48 小時交；對方有 AI 時分上下兩段。
 ---
 
 # AI GO App 操作手冊產生器
@@ -19,10 +19,11 @@ description: >
 每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
 **交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
 
-**另一個入口：交付通知**（references/handoff.md）。做完一件事、要告訴需求方下一步時用，不走手冊流程：
-`python <skill>/scripts/handoff.py handoff.json` → 固定五段的短訊息，檢查用語（不准開發用語、英文縮寫、錯誤代碼、
-內部叫法）與安全（步驟不刪資料、不對外發訊息、不放帳密）；對方有會用 AI 的人且在測試站時，分上段給人看、
-下段貼給對方的 AI。每週用 `mode: weekly` 出薄版；整本手冊留到最後交付。**只產文字，不自動發送。**
+**另一個入口：交付通知**（references/handoff.md）。交付時告訴需求方下一步，不走手冊流程：
+`python <skill>/scripts/handoff.py handoff.json` → 可直接貼的短訊息，檢查用語（不准開發用語、英文縮寫、錯誤代碼、
+內部叫法）與安全（步驟不刪資料、不對外發訊息、不放帳密）。FDE 一週一則、涵蓋整週，週會前 48 小時交；
+RD 做完就交。**每次問使用者交付站連結、對方有沒有會用 AI 的人**（有 → 上段給人看、下段貼給對方的 AI）；
+不讀客戶資料。整本手冊留到最後交付。**只產文字，不自動發送。**
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
 
@@ -59,7 +60,7 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
 - 「幫 {app} 做一份操作手冊／教學文件／交接簡報，要附截圖」
 - 「教一個人怎麼用這個後台，從串接到每頁功能與維護」
 - 介面改版後要重出手冊（工作資料夾還在就從 P4 重跑）
-- 「做好了，幫我寫給王經理的訊息」「這週的薄版」→ 交付通知（references/handoff.md），不走 P0～P7
+- 「做好了，幫我寫給王經理的訊息」「這週給客戶的說明」→ 交付通知（references/handoff.md），不走 P0～P7
 
 ## 需要的東西
 
@@ -139,7 +140,7 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/render.mjs` | HTML → 同名 PDF（含書籤）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
 | `scripts/compress_pdf.py` | 整份 PDF 壓縮（Ghostscript 或 pypdf）＋ 驗證頁數／圖片／連結／書籤不變、無外部參照、字型內嵌 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
-| `scripts/handoff.py` | 交付通知：組五段訊息（或上下兩段、本週薄版）＋用語與安全檢查（標準函式庫） |
+| `scripts/handoff.py` | 交付通知：組訊息（FDE 週交付／RD 單次，對方有 AI 時上下兩段）＋用語與安全檢查（標準函式庫） |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
 | `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、交付通知輸入（`handoff*.example.json`） |
@@ -149,5 +150,5 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `references/screenshot-guide.md` | 截圖種類、spec 寫法、12 個技巧 |
 | `references/layout-guide.md` | 畫布、圖片尺寸、字級、G4 檢查表 |
 | `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、交付通知詢問 |
-| `references/handoff.md` | 交付通知：五段格式、需求方有 AI 時的上下兩段、用語規則、安全規則、本週薄版 |
+| `references/handoff.md` | 交付通知：FDE 週交付與 RD 單次、要問的兩件事、上下兩段、用語規則、安全規則 |
 | `references/pitfalls.md` | 實戰踩雷 |

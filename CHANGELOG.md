@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.0 — 2026-10-04
+
+⚠️ **破壞性（交付通知輸入檔）**：`handoff.json` 格式改了——拿掉 `site`、`mode`、`ai_helper`、`changes`，
+改成 `items`（每件事＋步驟）＋必填 `with_ai`；FDE 必填 `meeting`。0.8.0 的輸入檔要照
+`templates/handoff.example.json` 重寫。手冊流程不受影響。
+
+### 交付通知修正（issue #8 回饋）
+
+- **不分測試站、正式站**：`url` 就是交付站，每次問使用者要連結。拿掉 `site` 與「只在測試站才產 AI 段」的規則；
+  給 AI 的規則改成「只在這個網址上操作」
+- **不讀客戶資料**：拿掉「看客戶資料『會用 AI 開發的人』那一欄」。改成每次問使用者對方有沒有會用 AI 的人，
+  填 `with_ai: true／false`；沒填直接報錯（不能預設、不能猜）
+- **FDE 一週一則**：一則涵蓋這週所有做好的事（每件 1～5 步）＋要對方決定的事，週會前 **48 小時**交
+  （`meeting` 寫到時間，不到 48 小時提醒）；回覆期限預設＝週會開始前。本週薄版併進這則，拿掉 `mode: weekly`
+- RD 照舊做完就交；只有一件事時版面同 0.8.0
+- 有 AI 時：決定的事放上段給人，不給 AI；下段多件事分「一、二、」，回報「每個功能的每一步」
+- 範本：`handoff.example.json` 改成 FDE 週交付、新增 `handoff.rd.example.json`、刪除 `handoff.weekly.example.json`
+- 文件：`handoff.md` 重寫、`prompts.md` §9 改成每次要問的兩件事、`pitfalls.md`、SKILL.md、README
+- 測試：`tests/test_handoff.py` 改寫（28 項）
+
 ## 0.8.0 — 2026-10-04
 
 ### 交付通知（新入口，issue #8）

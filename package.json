@@ -1,6 +1,6 @@
 {
   "name": "ai-go-app-present-skill",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "AI GO app 操作手冊產生器：截圖、排版、渲染",

@@ -1,26 +1,39 @@
 {
-  "_說明": "交付通知（scripts/handoff.py）。底線開頭的欄位是說明，可刪。規則見 references/handoff.md",
-  "mode": "notice",
+  "_說明": "交付通知（scripts/handoff.py）：FDE 一週一次，涵蓋這週所有做好的事，週會前 48 小時交。底線開頭的欄位是說明，可刪。規則見 references/handoff.md",
   "audience": "fde",
-  "_audience": "fde＝FDE 給客戶（週會前 2 天交）；rd＝內部 RD 給需求方（做完就交）",
+  "_audience": "fde＝FDE 給客戶（一週一則、週會前 48 小時交）；rd＝內部 RD 給需求方（做完就交，見 handoff.rd.example.json）",
   "to": "王經理",
-  "ai_helper": "王經理",
-  "_ai_helper": "客戶資料「會用 AI 開發的人」那一欄。有填且在測試站 → 上下兩段（給人看＋貼給 AI）；空白 → 只給人看",
-  "feature": "訂單匯出",
-  "done": "您上週提的「訂單匯出」做好了",
-  "_done": "可省略，預設「「feature」做好了」",
-  "site": "測試站",
-  "url": "https://example.ai-go.app/runtime/order-center#/orders",
-  "steps": [
-    {"do": "打開連結，登入後進「訂單」頁", "expect": "右上角有「匯出」按鈕"},
-    {"do": "月份選 9 月，按「匯出」", "expect": "下載一個檔案"},
-    {"do": "打開下載的檔案", "expect": "每筆都有日期和金額，筆數跟畫面上一樣", "say": "打開檔案，看日期和金額對不對"},
-    {"do": "月份改選 8 月，再按一次「匯出」", "expect": "檔案內容換成 8 月的訂單"}
+  "url": "https://example.ai-go.app/runtime/order-center",
+  "_url": "交付站連結：每次問使用者，不分測試站、正式站",
+  "with_ai": false,
+  "_with_ai": "每次問使用者「對方有沒有會用 AI 的人」：true → 上段給人看、下段貼給對方的 AI；false → 只給人看",
+  "meeting": "2026-10-07 14:00",
+  "_meeting": "這週週會的日期時間。回覆期限預設＝週會開始前；離週會不到 48 小時會提醒",
+  "items": [
+    {
+      "feature": "訂單匯出",
+      "done": "可以選月份把訂單匯出成檔案",
+      "url": "https://example.ai-go.app/runtime/order-center#/orders",
+      "steps": [
+        {"do": "打開連結，登入後進「訂單」頁", "expect": "右上角有「匯出」按鈕"},
+        {"do": "月份選 9 月，按「匯出」", "expect": "下載一個檔案"},
+        {"do": "打開下載的檔案", "expect": "每筆都有日期和金額，筆數跟畫面上一樣", "say": "打開檔案，看日期和金額對不對"},
+        {"do": "月份改選 8 月，再按一次「匯出」", "expect": "檔案內容換成 8 月的訂單"}
+      ]
+    },
+    {
+      "feature": "客人電話遮蔽",
+      "done": "訂單列表的電話只顯示後三碼",
+      "steps": [
+        {"do": "進「訂單」頁", "expect": "電話那一欄只看得到後三碼", "say": "進「訂單」頁，看電話是不是只露後三碼"}
+      ]
+    }
   ],
-  "_steps": "最多 5 步。do＝做什麼（一句一個動作）；expect＝預期看到什麼（給 AI 版必填）；say＝給人看的版本另外的寫法（選填）",
-  "meeting": "2026-10-07",
-  "_meeting": "FDE 的週會日。沒寫 reply_by 時，回覆期限＝週會前一天",
-  "reply_by": "2026-10-06",
+  "_items": "這週做好的每件事。url 選填（直接連到那一頁）；steps 每件 1～5 步：do＝做什麼（一句一個動作）、expect＝預期看到什麼（with_ai 時必填）、say＝給人看的另一種寫法（選填）",
+  "decisions": [
+    {"ask": "匯出的檔案要不要加上客人電話？", "options": ["要", "不要"]}
+  ],
+  "_decisions": "要對方決定的事（選填）：問句＋選項",
   "reply_to": "我",
   "attach": "截圖",
   "allow": []
