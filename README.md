@@ -1,14 +1,17 @@
 # ai-go-app-present-skill
 
-把 AI GO custom app 做成 **16:9 閱讀式簡報 PDF 操作手冊**的 Agent Skill：
-抓重點功能 → 規劃結構（使用者核准）→ 登入真實後台截圖（全頁圖解＋局部操作）→
-查證每個設定「情境 → 結果」→ 排版輸出 → 逐頁目視驗收。
+AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先選用途**（可多選、至少一種）：
+
+| 用途 | 產出 |
+|---|---|
+| **操作說明** | 16:9 閱讀式簡報 PDF：真實後台截圖（全頁圖解＋局部操作）、一個流程一頁、每個設定「情境 → 結果」 |
+| **進度報告** | FDE 給客戶的文字訊息，一週一則、週會前 48 小時交：做好了什麼／連結／怎麼驗／要決定的事／何時回覆；可補附圖；自動擋掉開發用語與危險步驟；客戶有 AI 時分上下兩段（[references/progress-report.md](references/progress-report.md)） |
+| **測試報告** | PDF 1～2 頁：開發過程已有的測試數據（例：OCR 準確度），照來源抄 |
+| **功能展示** | PDF 約 5～10 頁：每個重點功能一頁，全頁截圖＋一句「這能幫你做什麼」，不教操作 |
+
+PDF 類多選時合成一份，順序固定：功能展示 → 測試報告 → 操作說明。
 
 適用：客服後台、CRM、POS、ERP 等任何掛在 AI GO runtime 或 developer 預覽頁的 app。
-
-另含**交付通知**：交付時產出一則可以直接貼給需求方的訊息（做好了什麼／連結／怎麼驗／要決定的事／
-何時回覆／不行回給誰），自動擋掉開發用語與危險步驟；需求方有 AI 時分上下兩段，下段給對方的 AI 照步驟測。
-FDE 一週一則、週會前 48 小時交；RD 做完就交。見 [references/handoff.md](references/handoff.md)。
 
 ## 安裝
 
@@ -20,7 +23,7 @@ npm install            # puppeteer-core
 pip install pillow pypdf   # 總表、PDF 壓縮（有 Ghostscript 會優先用它，選配）
 ```
 
-- Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」）
+- Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」「這週的進度報告」「做份功能展示」）
 - 其他 agent：把 `SKILL.md` 與 `references/` 加進 rules／context
 - 建議加裝自動更新 hook，見下方「保持更新」
 
@@ -105,11 +108,11 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 
 見 [SKILL.md](SKILL.md) 的「快速開始」。完整流程與關卡在 [references/workflow.md](references/workflow.md)。
 
-交付通知：
+進度報告：
 
 ```bash
-cp templates/handoff.example.json handoff.json     # FDE 週交付；RD 單次用 handoff.rd.example.json
-python scripts/handoff.py handoff.json             # 檢查沒過 exit 1，列出哪一句、哪個詞
+cp templates/progress.example.json progress.json
+python scripts/progress.py progress.json --out 進度報告.txt   # 檢查沒過 exit 1，列出哪一句、哪個詞
 ```
 
 ## 產出長什麼樣
@@ -117,7 +120,8 @@ python scripts/handoff.py handoff.json             # 檢查沒過 exit 1，列�
 - 樣式：AI GO 品牌 B2B 母版（深底封面押製作日、每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底）
 - 檔名：`AI GO 租戶名 App名 YYYYMMDD.pdf`（租戶名與 App 名自動取得）
 - 獨立檔案、小於 20 MB：圖片與字型全部內嵌；超過自動整份壓縮，壓到底仍超過會先問你要不要照樣交付
-- 封面 → **目錄**（自動產生、頁碼可點、PDF 附書籤）→（選配）**驗收數據**（例：OCR 準確度，問過你才放）→ 後台地圖 → 前置設定
+- 封面（標題依用途）→ **目錄**（自動產生、頁碼可點、PDF 附書籤）→ 功能展示 → 測試報告 → 操作說明（只出選了的）
+- 操作說明：後台地圖 → 前置設定
 - A 核心工作：全景圖解、找資料、狀態機、一個流程一頁、讀懂系統資訊、側欄面板、每天的節奏
 - B 控制 AI：控制點地圖、每組參數「設定（目前值）｜情境 → 結果」、測試方法、症狀 → 改哪裡
 - C 其他與維護：其他頁面、維護節奏、目前設定值附錄 → 封底

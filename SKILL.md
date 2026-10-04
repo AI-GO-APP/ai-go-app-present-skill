@@ -1,29 +1,30 @@
 ---
 name: ai-go-app-present
 description: >
-  Use when the user asks for an operation manual, tutorial, user guide, feature walkthrough
-  or handover deck for an AI GO custom app（操作手冊、教學文件、使用說明、功能導覽、交接簡報、
-  閱讀式簡報 PDF）。抓重點功能 → 規劃結構並經使用者核准 → 登入真實後台截圖（全頁圖解＋局部操作）→
-  查證每個參數「情境 → 結果」→ 產出 16:9 閱讀式簡報 PDF。含可重跑的截圖、排版、渲染腳本與提示詞。
-  Also use when a feature is delivered and the requester needs a next-step message（交付通知、給需求方的訊息、
-  跟客戶說做好了、這週給客戶的說明）：產出可直接貼給需求方的訊息（做好了什麼／連結／怎麼驗／要決定的事／
-  何時回覆／不行回給誰），檢查用語與安全；FDE 一週一則、週會前 48 小時交；對方有 AI 時分上下兩段。
+  Use when the user wants delivery material for an AI GO custom app: an operation manual, a weekly
+  progress report to the client, a test report, or a feature showcase（操作說明／操作手冊、教學文件、使用說明、
+  交接簡報；進度報告、週報、交付通知、給客戶的說明、跟客戶說做好了；測試報告、驗收數據、準確度；功能展示、功能導覽、
+  demo 簡報）。第一步一定先讓使用者選用途（四選、可多選、至少一種）：操作說明／測試報告／功能展示產出 16:9
+  閱讀式簡報 PDF（多選合成一份），進度報告產出可直接貼給客戶的文字訊息（FDE 一週一則、週會前 48 小時）。
+  含可重跑的截圖、排版、渲染、訊息檢查腳本與提示詞。
 ---
 
-# AI GO App 操作手冊產生器
+# AI GO App 交付文件產生器
 
-把一支 AI GO custom app 做成「讀得懂、照著做得出來」的 16:9 閱讀式簡報 PDF：
-真實後台截圖、大功能全頁圖解、一個流程一頁、每個設定都講清楚「改了在什麼情境會怎樣」。
+一支 AI GO custom app 交付給客戶的四種東西，都從這裡做：
+
+| 用途 | 產出 | 給誰、什麼時候 | 細節 |
+|---|---|---|---|
+| **操作說明** | 16:9 閱讀式簡報 PDF | 接手後台的人；最後交付 | 真實截圖、大功能全頁圖解、一個流程一頁、每個設定「情境 → 結果」 |
+| **測試報告** | 同上（1～2 頁） | 客戶決策者；有既有測試數據時 | 只整理開發過程已有的測試數據（準確度、正確率），照來源抄 |
+| **功能展示** | 同上（約 5～10 頁） | 決策者、demo；不教操作 | 每個重點功能一頁：全頁截圖＋圖解＋一句「這能幫你做什麼」 |
+| **進度報告** | 文字訊息（可補附圖） | FDE 給客戶；一週一則、週會前 48 小時 | 這週做好了什麼、怎麼驗、要決定的事、何時回覆（references/progress-report.md） |
+
+PDF 類（操作說明／測試報告／功能展示）多選時**合成一份**，順序固定：功能展示 → 測試報告 → 操作說明。
 
 **樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、**封面後一定是目錄頁**、
 每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 YYYYMMDD」**（PDF 與 HTML 同名）。
 **交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
-
-**另一個入口：交付通知**（references/handoff.md）。交付時告訴需求方下一步，不走手冊流程：
-`python <skill>/scripts/handoff.py handoff.json` → 可直接貼的短訊息，檢查用語（不准開發用語、英文縮寫、錯誤代碼、
-內部叫法）與安全（步驟不刪資料、不對外發訊息、不放帳密）。FDE 一週一則、涵蓋整週，週會前 48 小時交；
-RD 做完就交。**每次問使用者交付站連結、對方有沒有會用 AI 的人**（有 → 上段給人看、下段貼給對方的 AI）；
-不讀客戶資料。整本手冊留到最後交付。**只產文字，不自動發送。**
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
 
@@ -55,12 +56,30 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
   - **「開發副本，略過」**→ 那份是正在改 skill 的工作區（本地版本高於遠端，或 git 不在
     main／master 分支），不是安裝，不用處理也不用提。
 
+## Phase 0：選用途（強制，每次製作的第一步）
+
+Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途**——每次都問，不從需求推測、不沿用上一次：
+
+- 用 AskUserQuestion（`multiSelect: true`），四個選項固定：**操作說明／進度報告／測試報告／功能展示**
+  （問法見 references/prompts.md §0）。可以把從需求推測的那個標成建議，但要使用者自己選
+- **至少一種**；沒選就不往下做
+- 選完照下表走，選了幾種就做幾種：
+
+| 選了 | 接著做 |
+|---|---|
+| 操作說明／測試報告／功能展示（任一） | P0～P7（references/workflow.md）；`Deck(purposes=[…])` 傳入選的 PDF 類用途，合成一份 PDF |
+| 進度報告 | references/progress-report.md：問交付站連結與對方有沒有會用 AI 的人 → `scripts/progress.py` 產文字訊息 |
+
+`Deck` 沒給 `purposes` 會直接報錯；`purposes` 放了「進度報告」也會報錯（它不出 PDF）。
+
 ## 何時用
 
 - 「幫 {app} 做一份操作手冊／教學文件／交接簡報，要附截圖」
-- 「教一個人怎麼用這個後台，從串接到每頁功能與維護」
+- 「這週要給客戶的說明」「跟王經理說做好了」「週報」
+- 「把準確度測試結果整理給客戶看」「做一份功能展示給老闆 demo」
 - 介面改版後要重出手冊（工作資料夾還在就從 P4 重跑）
-- 「做好了，幫我寫給王經理的訊息」「這週給客戶的說明」→ 交付通知（references/handoff.md），不走 P0～P7
+
+不管哪一種說法，都先走 Phase 0 讓使用者選用途。
 
 ## 需要的東西
 
@@ -73,10 +92,12 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
 | 登入憑證 | runtime：`AIGO_EMAIL`／`AIGO_PASSWORD`（或 `AIGO_TOKEN`）；preview：`DEVPORTAL_PAT`。放環境變數或 `env_file`，**不要寫進任何 repo** |
 | app 原始碼 | 讀路由、欄位、後端行為（說法查證要用） |
 
-## 流程（詳見 references/workflow.md）
+只選進度報告時只需要 Python 3（零相依）；要補附圖才需要截圖工具與登入憑證。
+
+## 流程（PDF 類，詳見 references/workflow.md）
 
 ```
-P0 需求確認 → P1 探勘 → P2 大綱 ═G1 使用者核准═ → P3 準備資料 → P4 截圖 ═G2 截圖驗收═
+Phase 0 選用途 → P0 需求確認 → P1 探勘 → P2 大綱 ═G1 使用者核准═ → P3 準備資料 → P4 截圖 ═G2 截圖驗收═
 → P5 寫內容 ═G3 說法查證═ → P6 排版輸出 ═G4 逐頁目視═ → P7 交付與收尾
 ```
 
@@ -94,14 +115,22 @@ cp <skill>/templates/shots.plan.example.mjs shots.plan.mjs               # 改�
 node <skill>/scripts/shoot.mjs --config present.config.json [群組…]      # P4
 python <skill>/scripts/contact_sheet.py "shots/*.png" --out disc/sheet   # G2：逐張看
 python <skill>/scripts/prep_state.py restore --table …                   # 還原
-cp <skill>/templates/deck_content.example.py deck_content.py             # P5：改 SKILL 路徑後照大綱寫
+cp <skill>/templates/deck_content.example.py deck_content.py             # P5：改 SKILL 路徑、purposes 後照大綱寫
 python deck_content.py                                                   # →「AI GO 租戶名 App名 YYYYMMDD.html」
 node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 YYYYMMDD.html" --png preview   # 同名 PDF；> 20 MB 自動壓縮
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv --no-label   # G4
 ```
 
+進度報告：
+
+```bash
+cp <skill>/templates/progress.example.json progress.json
+python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out 進度報告.txt]
+```
+
 ## 核心原則
 
+0. **用途由使用者選**：Phase 0 每次都問、至少一種；只做選了的用途，沒選的不順手加。
 1. **先問再做**：對象、重心、形式、資料（references/prompts.md §1）。使用者說過的不再問。
 2. **預設比重**：核心工作流程 ＞ 可控制的參數與提示詞 ＞ 其他頁面。
 3. **一個流程一頁**；**只有大功能用全頁截圖＋圖解**；操作過程只截局部。
@@ -122,10 +151,13 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 12. **交付檔獨立、小於 20 MB**：圖片一律用本機截圖（不引用網址）；`render.mjs` 超過 20 MB 自動呼叫
     `compress_pdf.py` 整份壓縮。壓到畫質底線仍超過（exit 2）→ **先問使用者**，同意就照現況交付
     （references/workflow.md P7）。
-13. **驗收數據是選配，要先問**：探勘時找到開發歷程中重要的測試數據（OCR 準確度、AI 判斷正確率等交付品質），
-    在大綱提案時問使用者要不要放；同意才用 `d.acceptance()`，預設排在目錄後第一章、1～2 頁，
-    只寫指標、定義、結果、樣本、日期與範圍。沒找到就不問、不出這章；**不為了手冊另外跑測試**。
-    數字照來源抄，`sources` 必填（references/writing-guide.md「驗收數據」）。
+13. **測試報告只用既有數據**：使用者選了測試報告才做。探勘時找開發歷程已有的測試數據（OCR 準確度、AI 判斷正確率等
+    交付品質）；找不到就告訴使用者、請他提供或拿掉這個用途，**不為了報告另外跑測試**。`d.acceptance()` 1～2 頁，
+    只寫指標、定義、結果、樣本、日期與範圍；數字照來源抄，`sources` 必填（references/writing-guide.md「測試報告」）。
+14. **功能展示不教操作**：使用者選了功能展示才做。`d.showcase()` 每個重點功能一頁、約 5～10 頁；
+    一句「這能幫你做什麼」寫它做什麼、會怎樣，不寫形容詞與推銷語（references/writing-guide.md「功能展示」）。
+15. **進度報告只給 FDE、只產文字**：一週一則、週會前 48 小時交；每次問交付站連結與對方有沒有會用 AI 的人，
+    不讀客戶資料；有助於說明時補附圖；不自動發送（references/progress-report.md）。
 
 ## 檔案
 
@@ -136,19 +168,19 @@ python <skill>/scripts/contact_sheet.py "preview/p*.png" --rows 2 --out disc/pv 
 | `scripts/shoot.mjs` | 依 `shots.plan.mjs` 分群組截圖 |
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
 | `scripts/desktop_shot.py` | 瀏覽器以外的畫面：桌面視窗／螢幕／區域截圖，進同一份 `shots.json`（Windows 零相依；macOS／Linux 盡力） |
-| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、驗收數據 `acceptance()`（選配）、分隔頁（自動頁目）、封底）與檔名規則 |
+| `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、用途 `purposes`／`section()`、測試報告 `acceptance()`、功能展示 `showcase()`、分隔頁（自動頁目）、封底）與檔名規則 |
 | `scripts/render.mjs` | HTML → 同名 PDF（含書籤）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
 | `scripts/compress_pdf.py` | 整份 PDF 壓縮（Ghostscript 或 pypdf）＋ 驗證頁數／圖片／連結／書籤不變、無外部參照、字型內嵌 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
-| `scripts/handoff.py` | 交付通知：組訊息（FDE 週交付／RD 單次，對方有 AI 時上下兩段）＋用語與安全檢查（標準函式庫） |
+| `scripts/progress.py` | 進度報告：組訊息（一週一則，對方有 AI 時上下兩段，可附圖）＋用語與安全檢查（標準函式庫） |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
-| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、交付通知輸入（`handoff*.example.json`） |
+| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、進度報告輸入（`progress.example.json`） |
 | `references/workflow.md` | 七階段與四道關卡 |
 | `references/brand.md` | AI GO 品牌規範（色彩、字體、幾何、固定頁、截圖框、檔名） |
 | `references/writing-guide.md` | 語氣、頁型、「情境 → 結果」寫法、說法查證 |
 | `references/screenshot-guide.md` | 截圖種類、spec 寫法、12 個技巧 |
 | `references/layout-guide.md` | 畫布、圖片尺寸、字級、G4 檢查表 |
-| `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、交付通知詢問 |
-| `references/handoff.md` | 交付通知：FDE 週交付與 RD 單次、要問的兩件事、上下兩段、用語規則、安全規則 |
+| `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、選用途、測試數據盤點、進度報告詢問 |
+| `references/progress-report.md` | 進度報告：要問的兩件事、訊息格式、附圖、上下兩段、用語規則、安全規則 |
 | `references/pitfalls.md` | 實戰踩雷 |

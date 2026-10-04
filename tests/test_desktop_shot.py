@@ -135,7 +135,7 @@ class DeckKitTests(unittest.TestCase):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         (Path(d) / "shots.json").write_text(json.dumps(man), encoding="utf-8")
-        return dk.Deck(tenant="租戶", app="App", shots=d)
+        return dk.Deck(tenant="租戶", app="App", purposes=["操作說明"], shots=d)
 
     def test_whole_desktop_window_gets_window_frame_with_title(self):
         d = self.deck({"win": {"w": 1000, "h": 500, "full": True, "kind": "desktop", "title": "LINE <測試>", "marks": []}})

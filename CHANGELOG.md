@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.10.0 — 2026-10-04
+
+⚠️ **破壞性**：(1) `Deck(...)`／`Deck.from_meta(...)` 必須給 `purposes=[…]`（舊的 deck_content.py 加上
+`purposes=["操作說明"]` 即可，輸出不變）；`acceptance()` 拿掉 `after_toc`，且要 purposes 有「測試報告」。
+(2) 交付通知改名進度報告：`scripts/handoff.py` → `scripts/progress.py`、`handoff.json` → `progress.json`，
+只給 FDE（拿掉 `audience: rd`），`meeting` 必填。
+
+### 第一步一定先選用途（Phase 0）
+
+Skill 定位從「操作手冊產生器」改成「AI GO 交付文件產生器」。每次製作的第一步，用 AskUserQuestion（多選、至少一種）
+讓使用者選用途，不從需求推測、不沿用上次：
+
+| 用途 | 產出 |
+|---|---|
+| 操作說明 | 原本的手冊流程（P0～P7） |
+| 進度報告 | 文字訊息（issue #8 收斂在這裡），只給 FDE、一週一則、週會前 48 小時 |
+| 測試報告 | 原本的「驗收數據章」搬過來，只用既有數據 |
+| 功能展示 | 新：每個重點功能一頁、全頁截圖＋一句「這能幫你做什麼」，不教操作 |
+
+- **deck_kit**：`Deck(purposes=…)` 必填、只收 PDF 類；多選合成一份 PDF，內容頁自動排成
+  「功能展示 → 測試報告 → 操作說明」（同用途照呼叫順序；封面、目錄、封底不動）。
+  選了卻沒內容頁、或有頁屬於沒選的用途 → `write()` 報錯。`d.section(用途)` 切換自訂頁的歸屬。
+  封面標題、眉標依用途產生（只有操作說明仍是「後台操作手冊」）；沒選操作說明時目錄不放讀法列
+- **`d.showcase(feature, value, shot, notes)`**（新）：功能展示頁。value ≤ 40 字、notes ≤ 5、整段 ≤ 12 頁；
+  沒有 notes 時截圖放大、不畫編號
+- **測試報告**：`acceptance()` 只在選了測試報告時能用；不再於大綱階段問「要不要放」——選了就做，
+  找不到既有數據就請使用者提供或拿掉這個用途，仍不另外跑測試
+- **目錄**：同一欄疊多組時，組標題改算 3 列（實測約 2.6 列；功能展示＋測試報告＋開始之前疊三組時原本會超出下緣）
+
+### 進度報告（原交付通知）
+
+- 只給 FDE：拿掉 RD 用法與「今天起第 2 個工作日」的期限；`meeting` 必填，回覆期限預設週會開始前
+- **附圖**（新）：`items[].images` 放截圖路徑，訊息寫「畫面：附圖 1、附圖 2」（有 AI 時標在上段），檔案不存在或不是圖片就報錯；
+  `--out 進度報告.txt` 會把附圖複製成「進度報告_附圖1.png」…；有附圖時提醒逐張過 G2。下段給 AI 的不提附圖
+- 改名：`references/handoff.md` → `references/progress-report.md`、`templates/handoff.example.json` → `progress.example.json`、
+  刪除 `handoff.rd.example.json`、`tests/test_handoff.py` → `test_progress.py`
+
+### 文件
+
+SKILL.md（description、用途總表、Phase 0、核心原則 0／13～15）、`workflow.md`（Phase 0 與各用途對照）、
+`prompts.md`（§0 選用途、§1、§8 測試報告、§9）、`writing-guide.md`（功能展示、測試報告）、`layout-guide.md`、
+`pitfalls.md`、`brand.md`、`progress-report.md`、README；範本 `deck_content.example.py`（purposes、功能展示頁）、`outline.example.md`
+
+### 測試
+
+新增 `tests/test_deck_purposes.py`（用途必填與驗證、排序、section、showcase 上限與版面、讀法列）；
+`test_deck_acceptance.py`、`test_progress.py` 依新規則改寫；全部 115 項
+
 ## 0.9.1 — 2026-10-04
 
 ### 交付通知修正（審查發現）

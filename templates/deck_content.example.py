@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """簡報內容範例：複製成工作資料夾的 deck_content.py，照大綱改寫。
 每一種頁型都示範一次（references/writing-guide.md 的「頁型」）。截圖名稱要和 shots.plan.mjs 一致。
+purposes 照 Phase 0 使用者選的填（PDF 類：功能展示／測試報告／操作說明）；沒選的用途，那段頁型整段刪掉。
+多選時內容頁自動排成「功能展示 → 測試報告 → 操作說明」，寫的順序不影響。
 
 執行：python deck_content.py → 「AI GO 租戶名 App名 YYYYMMDD.html」（目錄頁自動產生）
       node <skill>/scripts/render.mjs --html "AI GO … .html" --png preview   → 同名 PDF（超過 20 MB 自動壓縮）
@@ -14,7 +16,8 @@ sys.path.insert(0, str(SKILL))
 from deck_kit import Deck  # noqa: E402
 
 # 租戶名、App 名由 discover.mjs 寫進 disc/meta.json；製作日預設今天（台灣時間）
-d = Deck.from_meta("disc/meta.json", shots="shots", version="VFS v12")
+# purposes 必填：Phase 0 使用者選的 PDF 類用途（這個範本三種都示範；封面標題跟著用途自動產生）
+d = Deck.from_meta("disc/meta.json", purposes=["功能展示", "測試報告", "操作說明"], shots="shots", version="VFS v12")
 T, S, N, C = d.table, d.steps, d.note, d.chip
 P0, PA, PB, PC = "開始之前", "A　核心工作", "B　控制 AI", "C　其他與維護"
 
@@ -27,9 +30,15 @@ d.cover("一句話說清楚這份手冊教什麼：<br>核心工作怎麼做、�
 # 標題會直接列進目錄，所以每頁標題要短（約 16 字內），太長會被截成「…」。
 d.toc()
 
-# ── 頁型 2b：驗收數據（選配）── 開發歷程中有重要測試數據、且使用者在大綱階段同意才放；沒有就整段刪掉。
-# 預設排在目錄後第一章（寫在哪都會被移過去）。數字照來源抄，不重算、不美化；每個指標一句白話定義。
-# sources 必填：不印進手冊，write() 時印出來給 G3 查證與交付回報用。
+# ── 頁型 2a：功能展示（選了「功能展示」才有）── 一個重點功能一頁、約 5～10 頁，不教操作。
+# value＝一句「這能幫你做什麼」（≤ 40 字）；notes＝同編號說明（≤ 5）；省略 notes 截圖佔滿整頁。
+d.showcase("訊息中心", "所有渠道的客人訊息集中一處，AI 先回、需要時轉真人",
+           "messages-full", notes=[(1, "對話列表", "誰在等回覆一眼看到"), (2, "對話內容", "AI 和真人的回覆都在這裡"),
+                                   (3, "客人資料", "訂單、標籤跟著對話出現")])
+
+# ── 頁型 2b：測試報告（選了「測試報告」才有）── 只放開發歷程已有的測試數據，不另外跑測試。
+# 排在功能展示之後、操作說明之前（寫在哪都會排過去）。數字照來源抄，不重算、不美化；每個指標一句白話定義。
+# sources 必填：不印進 PDF，write() 時印出來給 G3 查證與交付回報用。
 d.acceptance(
     cards=[("98.2%", "金額辨識準確率", "發票總金額與人工核對完全相同的比例"),
            ("96.4%", "統一編號辨識準確率", "8 碼全部正確才算對"),
