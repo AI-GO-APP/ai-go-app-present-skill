@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """簡報內容範例：複製成工作資料夾的 deck_content.py，照大綱改寫。
 每一種頁型都示範一次（references/writing-guide.md 的「頁型」）。截圖名稱要和 shots.plan.mjs 一致。
-purposes 照 Phase 0 使用者選的填（PDF 類：功能展示／測試報告／操作說明）；沒選的用途，那段頁型整段刪掉。
-多選時內容頁自動排成「功能展示 → 測試報告 → 操作說明」，寫的順序不影響。
+purposes 照 Phase 0 使用者選的填（PDF 類：功能展示／測試報告／整合測試／操作說明）；沒選的用途，那段頁型整段刪掉。
+多選時內容頁自動排成「功能展示 → 測試報告 → 整合測試 → 操作說明」，寫的順序不影響。
 
 執行：python deck_content.py → 「AI GO 租戶名 App名 用途 YYYYMMDD.html」（目錄頁自動產生）
       node <skill>/scripts/render.mjs --html "AI GO … .html" --png preview   → 同名 PDF（超過 20 MB 自動壓縮）
@@ -49,6 +49,11 @@ d.acceptance(
           ("需人工確認比例", "系統標記「請確認」的張數比例", "6.2%（31／500）", "500 張", "2026-09-20")],
     note="範圍：2026 年 8 月實際收到的電子發票與紙本發票各 250 張；手寫收據不在測試範圍。",
     sources=["{app}/docs/eval/ocr-2026-09-20.md", "{app}/docs/eval/category-2026-09-22.csv"])
+
+# ── 頁型 2c：整合測試（選了「整合測試」才有；purposes 要加 "整合測試"）── 一行產生全部頁面：
+# 讀 itest.mjs 的 itest/results.json 與 GT2 判讀檔 itest/review.json（每個未通過／疑慮都要有 judgement）。
+# 測試範圍與結果 → 問題一覽 → 每個問題一頁（截圖標框）→ 通過項目（文字逐條）→ 未測項目。references/integration-test.md
+# d.itest(scope="範圍：後台 6 頁＋4 條核心流程；LINE 推播不在範圍內")
 
 # ── 頁型 5b：指令頁（終端框；不截真實終端）── 指令與「實際」輸出；密鑰放 redact 一律遮成 ••••
 d.slide(P0, "前置：安裝與登入", "只做一次。看到最後一行代表成功。", d.row(

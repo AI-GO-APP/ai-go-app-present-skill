@@ -1,8 +1,8 @@
 {
   "name": "ai-go-app-present-skill",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
-  "description": "AI GO app 操作手冊產生器：截圖、排版、渲染",
+  "description": "AI GO app 交付文件產生器：截圖、整合測試、排版、渲染",
   "dependencies": { "puppeteer-core": "^25.6.0" }
 }

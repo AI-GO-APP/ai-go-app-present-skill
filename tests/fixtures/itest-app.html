@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>訂單中心 — AI GO</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  nav { display: flex; gap: 12px; padding: 12px; background: #eef; }
+  main { padding: 16px; }
+  .modal { position: fixed; inset: 20% 30%; background: #fff; border: 1px solid #333; padding: 20px; }
+  .error { color: #b00; }
+  .row { padding: 4px 0; }
+</style></head>
+<body>
+<!-- 整合測試執行器的測試用 App：每個按鈕對應一種要被抓到（或不該被點到）的情況 -->
+<div id="host"></div>
+<script>
+  const host = document.getElementById("host");
+  const root = host.attachShadow({ mode: "open" });
+  const state = { tab: "全部", orders: ["A001 王小明"], deleted: false, modal: false, amount: "" };
+  function view() {
+    const r = location.hash.replace(/^#/, "") || "/";
+    let main = "";
+    if (r === "/") {
+      main = `<h2>總覽</h2>
+        <div><button class="tab" data-tab="全部">全部</button> <button class="tab" data-tab="待處理">待處理</button></div>
+        <p>目前分頁：${state.tab}</p>
+        <button id="add">新增訂單</button>
+        <button id="boom">壞掉的按鈕</button>
+        <button id="amount">顯示金額</button>
+        <button id="noop">沒反應</button>
+        <button id="del">刪除全部</button>
+        <p>${state.amount}</p>
+        <p>${state.deleted ? "已全部刪除" : "資料完整"}</p>
+        ${state.modal ? `<div class="modal" role="dialog"><h3>新增訂單</h3><button id="cancel">取消</button></div>` : ""}`;
+    } else if (r === "/orders") {
+      main = `<h2>訂單</h2>
+        <div>${state.orders.map((o) => `<div class="row">${o}</div>`).join("")}</div>
+        <label>名稱 <input id="name"></label> <button id="create">建立</button>
+        <p class="error" id="err"></p>`;
+    } else if (r === "/broken") {
+      console.error("broken page render");
+      main = `<h2>報表</h2><p>本月營收：undefined 元</p>`;
+    }
+    root.innerHTML = `<nav><a href="#/">總覽</a><a href="#/orders">訂單</a></nav><main>${main}</main>`;
+  }
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    if (t.dataset.tab) state.tab = t.dataset.tab;
+    if (t.id === "add") state.modal = true;
+    if (t.id === "cancel") state.modal = false;
+    if (t.id === "boom") { setTimeout(() => { throw new Error("cannot read properties of null (reading 'total')"); }, 0); return; }
+    if (t.id === "amount") state.amount = "金額：" + (Number("x") * 2) + " 元";
+    if (t.id === "noop") return;
+    if (t.id === "del") state.deleted = true;
+    if (t.id === "create") {
+      const v = root.getElementById("name").value.trim();
+      if (!v) { root.getElementById("err").textContent = "請輸入名稱"; return; }
+      state.orders.push("A00" + (state.orders.length + 1) + " " + v);
+    }
+    view();
+  });
+  root.addEventListener("keydown", (e) => { if (e.key === "Escape") { state.modal = false; view(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.modal) { state.modal = false; view(); } });
+  window.addEventListener("hashchange", view);
+  view();
+</script>
+</body></html>
