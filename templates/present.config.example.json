@@ -14,5 +14,15 @@
   ],
   "tenant": "",
   "app_name": "",
+  "itest": {
+    "account": "測試帳號（管理員）",
+    "settle_ms": 1200,
+    "loading_wait_ms": 8000,
+    "sweep_max": 60,
+    "sweep_skip": [],
+    "ignore_urls": [],
+    "ignore_console": []
+  },
+  "_itest說明": "整合測試（scripts/itest.mjs）用，都可省略；見 references/integration-test.md。mode 也可設 url：不登入，直接開 base＋route（本機開發伺服器）",
   "_tenant說明": "tenant／app_name 留空＝自動取（租戶名來自 /auth/me，App 名來自頁面標題）；preview 模式取不到租戶名，要手填"
 }

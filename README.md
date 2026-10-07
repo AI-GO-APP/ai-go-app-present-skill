@@ -1,6 +1,6 @@
 # ai-go-app-present-skill
 
-AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先選用途**（可多選、至少一種）：
+AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先選用途**（五種，可多選、至少一種）：
 
 | 用途 | 產出 |
 |---|---|
@@ -8,8 +8,9 @@ AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先�
 | **進度報告** | FDE 給客戶的文字訊息，一週一則、週會前 48 小時交：做好了什麼／連結／怎麼驗／要決定的事／何時回覆；可補附圖；自動擋掉開發用語與危險步驟；客戶有 AI 時分上下兩段（[references/progress-report.md](references/progress-report.md)） |
 | **測試報告** | PDF 1～2 頁：開發過程已有的測試數據（例：OCR 準確度），照來源抄 |
 | **功能展示** | PDF 約 5～10 頁：每個重點功能一頁，全頁截圖＋一句「這能幫你做什麼」，不教操作 |
+| **整合測試** | PDF：實際把每一頁（冒煙）、每個可點 UI（巡檢）、每條核心流程（端到端）與表單驗證點跑一次，自動抓錯＋人工判讀合理性；通過的逐條文字、未通過與疑慮逐項截圖（[references/integration-test.md](references/integration-test.md)） |
 
-PDF 類多選時合成一份，順序固定：功能展示 → 測試報告 → 操作說明。
+PDF 類多選時合成一份，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明。
 
 適用：客服後台、CRM、POS、ERP 等任何掛在 AI GO runtime 或 developer 預覽頁的 app。
 
@@ -23,7 +24,7 @@ npm install            # puppeteer-core
 pip install pillow pypdf   # 總表、PDF 壓縮（有 Ghostscript 會優先用它，選配）
 ```
 
-- Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」「這週的進度報告」「做份功能展示」）
+- Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」「這週的進度報告」「做份功能展示」「交付前跑一次整合測試」）
 - 其他 agent：把 `SKILL.md` 與 `references/` 加進 rules／context
 - 建議加裝自動更新 hook，見下方「保持更新」
 
@@ -91,7 +92,8 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 - 舊版腳本只會讀到新版那一節的**前 20 行**：破壞性變更的警語要寫在該節最前面，
   並帶「破壞性」或「BREAKING」字樣。
 - 開發請在功能分支上做。本機在 `main` 上的 clone 會被當成安裝，一有新版就被強制同步。
-- 測試：`python -m unittest discover -s tests -v`（零相依，網路全部 mock）。
+- 測試：`python -m unittest discover -s tests -v`（零相依，網路全部 mock）；整合測試執行器：`node --test tests/*.test.mjs`
+  （規則單元測試＋對 `tests/fixtures/itest-app.html` 實跑一次，沒有 Chrome 會略過實跑）。
 
 ## 憑證
 
@@ -108,6 +110,14 @@ python scripts/check_update.py --check-only  # 只報告不同步（維護者／
 
 見 [SKILL.md](SKILL.md) 的「快速開始」。完整流程與關卡在 [references/workflow.md](references/workflow.md)。
 
+整合測試：
+
+```bash
+cp templates/itest.plan.example.mjs itest.plan.mjs
+node scripts/itest.mjs --config present.config.json --list   # 列案例，給使用者核准
+node scripts/itest.mjs --config present.config.json          # 執行 → itest/results.json、itest/review.json
+```
+
 進度報告：
 
 ```bash
@@ -120,7 +130,8 @@ python scripts/progress.py progress.json --out "AI GO 租戶名 App名 進度報
 - 樣式：AI GO 品牌 B2B 母版（深底封面押製作日、每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底）
 - 檔名：`AI GO 租戶名 App名 用途 YYYYMMDD.pdf`（租戶名與 App 名自動取得；多選的用途用「・」串，例 `功能展示・操作說明`）
 - 獨立檔案、小於 20 MB：圖片與字型全部內嵌；超過自動整份壓縮，壓到底仍超過會先問你要不要照樣交付
-- 封面（標題依用途）→ **目錄**（自動產生、頁碼可點、PDF 附書籤）→ 功能展示 → 測試報告 → 操作說明（只出選了的）
+- 封面（標題依用途）→ **目錄**（自動產生、頁碼可點、PDF 附書籤）→ 功能展示 → 測試報告 → 整合測試 → 操作說明（只出選了的）
+- 整合測試：測試範圍與結果 → 問題一覽 → 每個問題一頁（截圖標框＋步驟／預期／實際／建議）→ 通過項目（文字逐條）→ 未測項目
 - 操作說明：後台地圖 → 前置設定
 - A 核心工作：全景圖解、找資料、狀態機、一個流程一頁、讀懂系統資訊、側欄面板、每天的節奏
 - B 控制 AI：控制點地圖、每組參數「設定（目前值）｜情境 → 結果」、測試方法、症狀 → 改哪裡

@@ -1,6 +1,7 @@
 /**
  * ai-go-app-present：截圖共用函式庫。
- * - 登入 AI GO（runtime：帳密換 token 寫進 localStorage.token；preview：PAT 寫進 localStorage.dev_access_token）
+ * - 登入 AI GO（runtime：帳密換 token 寫進 localStorage.token；preview：PAT 寫進 localStorage.dev_access_token；
+ *   url：不登入，直接開 base＋route——本機開發伺服器、不走 AI GO 登入的頁面）
  * - App 掛在 shadow DOM：所有查找都從 shadow root 開始
  * - shot()：全頁或局部（多個元素取聯集）截圖，並把圖解標號座標寫進 shots.json
  *
@@ -56,6 +57,7 @@ function chromePath(cfg) {
 }
 
 async function getToken(cfg) {
+  if (cfg.mode === "url") return "";
   if (process.env.AIGO_TOKEN) return process.env.AIGO_TOKEN;
   const env = readEnv(cfg.env_file || "~/.aigo/.env");
   if (cfg.mode === "preview") {
@@ -109,7 +111,7 @@ export async function createSession(cfg, { dsf } = {}) {
   if (cfg.mode === "preview") {
     await p.goto("https://developer.ai-go.app/login", { waitUntil: "domcontentloaded" });
     await p.evaluate((t) => localStorage.setItem("dev_access_token", t), tok);
-  } else {
+  } else if (cfg.mode !== "url") {
     await p.goto(`${cfg.base}/login`, { waitUntil: "domcontentloaded" });
     await p.evaluate((t) => localStorage.setItem("token", t), tok);
   }
@@ -118,7 +120,8 @@ export async function createSession(cfg, { dsf } = {}) {
   const MAN = fs.existsSync(MANF) ? JSON.parse(fs.readFileSync(MANF, "utf8")) : {};
   const save = () => fs.writeFileSync(MANF, JSON.stringify(MAN, null, 1));
 
-  const appUrl = (route = "/") => (cfg.mode === "preview" ? `${cfg.preview_url}#${route}` : `${cfg.base}/runtime/${cfg.slug}#${route}`);
+  const appUrl = (route = "/") => (cfg.mode === "preview" ? `${cfg.preview_url}#${route}`
+    : cfg.mode === "url" ? `${cfg.base}${route}` : `${cfg.base}/runtime/${cfg.slug}#${route}`);
   async function go(route = "/", wait = 3000) { await p.goto(appUrl(route), { waitUntil: "networkidle2", timeout: 90000 }); await sleep(wait); }
   const get = async (spec) => (await p.evaluateHandle(`(${FIND})(${JSON.stringify(spec)})`)).asElement();
   const rect = (el) => p.evaluate((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }, el);
@@ -137,7 +140,7 @@ export async function createSession(cfg, { dsf } = {}) {
 
   /**
    * 截圖。specs=null＋full=true：整個視窗；否則取 specs（單一或陣列）的聯集＋pad。
-   * marks=[{n, spec}]：圖解標號，存成相對截圖左上角的 CSS px 座標。
+   * marks=[{n, spec}]：圖解標號，存成相對截圖左上角的 CSS px 座標；也可給 {n, rect:{x,y,w,h}}（視窗座標）。
    * 截圖區必須在視窗內：比視窗高的元素請先加大 viewport 或改截局部。
    */
   async function shot(name, specs, { pad = 14, marks = [], scroll = true, block = "center", full = false, note = "" } = {}) {
@@ -155,9 +158,9 @@ export async function createSession(cfg, { dsf } = {}) {
     }
     const ms = [];
     for (const m of marks) {
-      const el = await get(m.spec);
-      if (!el) { console.log("  (標號找不到)", name, m.n, JSON.stringify(m.spec)); continue; }
-      const r = await rect(el);
+      const el = m.rect ? null : await get(m.spec);
+      if (!m.rect && !el) { console.log("  (標號找不到)", name, m.n, JSON.stringify(m.spec)); continue; }
+      const r = m.rect || await rect(el);
       ms.push({ n: m.n, x: r.x - clip.x, y: r.y - clip.y, w: r.w, h: r.h });
     }
     await p.screenshot({ path: path.join(cfg.out, `${name}.png`), clip: { x: clip.x, y: clip.y, width: clip.w, height: clip.h } });
@@ -190,17 +193,26 @@ export async function createSession(cfg, { dsf } = {}) {
     Object.assign(MAN, JSON.parse(fs.readFileSync(MANF, "utf8")));  // 它改了檔案，記憶體要跟上，否則下一次 save() 會蓋掉
     console.log((r.stdout || "").trim());
   }
+  /** 以目前登入身分打平台 API（整合測試用來核對後端資料）：api("/api/v1/...", { method, body }) → { status, data } */
+  async function api(pathname, { method = "GET", body, headers = {} } = {}) {
+    const r = await fetch(/^https?:/.test(pathname) ? pathname : `${cfg.base}${pathname}`, { method,
+      headers: { ...(tok ? { Authorization: "Bearer " + tok } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body) });
+    const text = await r.text();
+    let data = text; try { data = JSON.parse(text); } catch { /* 不是 JSON 就回原文 */ }
+    return { status: r.status, data };
+  }
   const T = (text, sel = "button") => ({ sel, text });
   const F = (starts, extra = {}) => ({ sel: ".field", starts, ...extra });
   /** 租戶名（/auth/me 的 tenant_name；preview 模式或設定檔有填就用設定檔）與 App 名（頁面標題去掉「 — AI GO」） */
   async function meta() {
     let tenant = cfg.tenant || "";
-    if (!tenant && cfg.mode !== "preview") {
+    if (!tenant && cfg.mode !== "preview" && cfg.mode !== "url") {
       try { const r = await fetch(`${cfg.base}/api/v1/auth/me`, { headers: { Authorization: "Bearer " + tok } }); tenant = (await r.json()).tenant_name || ""; } catch { /* 留空 */ }
     }
     const title = await p.title();
     const app = cfg.app_name || title.replace(/\s*[—–-]\s*AI GO\s*$/, "").trim();
     return { tenant, app, title };
   }
-  return { p, browser, cfg, meta, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, desktop, step, sleep, T, F, ROOT, close: () => browser.close() };
+  return { p, browser, cfg, meta, api, appUrl, go, get, rect, must, click, mouseClick, scrollTo, type, run, shot, desktop, step, sleep, T, F, ROOT, close: () => browser.close() };
 }

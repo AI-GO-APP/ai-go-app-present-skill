@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.12.0 — 2026-10-07
+
+**行為變更**：Phase 0 從一題四選改成**一次問兩題**——「PDF 文件」（操作說明／測試報告／功能展示／整合測試，多選）＋
+「進度報告」（要／不用）。AskUserQuestion 每題最多 4 個選項，五種用途放不下一題。舊的 deck_content.py 不用改。
+
+### 第五種用途：整合測試
+
+交付前把 app **每一頁、每個可點的 UI、每條端到端流程都實際點跑一次**，判斷有沒有壞、畫面與訊息合不合理。
+PDF 報告裡**通過的逐條文字描述、免截圖；未通過與疑慮逐項截圖＋說明**。和「測試報告」（只整理既有數據）分開。
+
+- **測試架構**（`references/integration-test.md`）：IT0 範圍與安全 → IT1 盤點 → IT2 測試計畫（**GT1 使用者核准**）→ IT3 準備資料 →
+  IT4 執行 → IT5 判讀（**GT2 每個問題看過截圖**）→ IT6 報告 → IT7 交付、問要不要修。四個測試層：冒煙（每頁載入）、
+  UI 巡檢（每個可點元素）、端到端（核心流程，結果對回後端）、表單驗證；另可加權限等群組
+- **`scripts/itest.mjs`**（新）：照 `itest.plan.mjs` 執行。`t.smoke()`、`t.sweep({ route, prepare })`、`t.case({...}, fn)`、`t.skip({ reason })`；
+  案例 API 有 `expectVisible／expectGone／expectText／expectNoText／expectUrl／doubt／note／allow／api／acceptDialogs`，操作自動記成報告上的步驟。
+  `--list` 不開瀏覽器列出案例（給 GT1）；指定群組只重跑那幾組、其他組結果保留
+- **自動偵測**（`scripts/itest_core.mjs`）：JS 例外、API 5xx（未通過）／4xx（疑慮）、console 錯誤、連線失敗、畫面露出堆疊／錯誤名稱／
+  `[object Object]`（未通過）、`undefined`／`NaN`／`null`／`Invalid Date`／JSON 錯誤原文／沒代換的變數（疑慮）、錯誤提示框、空白頁、
+  卡在載入中、橫向捲軸、**點了沒有任何反應**、原生對話框（預設按取消）。未通過自動重跑一次判斷偶發或重現
+- **安全**：巡檢只點不會改資料的元素——刪除、儲存、送出、確定、匯出、登出、付款等字、submit、開關與勾選、外部連結一律略過，改由端到端在測試資料上測
+- **證據**：每個案例截一張全頁 `shots/it-<編號>.png`，問題處（出錯的字、點的按鈕、斷言對象）自動編號標框；元素被重繪掉時標點擊前的位置
+- **判讀檔 `itest/review.json`**：執行後自動補未判讀的骨架；每個未通過／疑慮要寫一句白話 `judgement`（≤ 90 字），未通過要寫 `severity`（高／中／低）；
+  可改判（誤判 → 通過、看了不合理 → 疑慮）；重跑過的判讀自動過期；修好重測通過的填 `fixed`
+- **`Deck.itest()`**（新）：一行產生測試範圍與結果（數字卡、測試層統計、環境）→ 問題一覽 → 每個問題一頁（截圖＋步驟／預期／實際／建議）→
+  通過項目（文字逐條、分頁）→ 未測項目與原因。沒判讀完不出報告。`write()` 印出問題清單供交付回報
+- 用途順序：功能展示 → 測試報告 → **整合測試** → 操作說明；檔名例 `AI GO 展示公司 訂單中心 整合測試 20261007.pdf`
+- **`lib.mjs`**：新增 `mode: "url"`（不登入，直接開 base＋route，本機開發伺服器用）與 `api(path, {method, body})`（用同一登入身分打平台 API）；
+  圖解標號可直接給視窗座標 `{n, rect}`
+
+### 文件與範本
+
+SKILL.md（description、用途總表、Phase 0、快速開始、核心原則 16）、新增 `references/integration-test.md`、`prompts.md`（§0 兩題、§10 範圍與安全、
+§11 盤點、§12 判讀）、`workflow.md`、`writing-guide.md`「整合測試」、`layout-guide.md`「整合測試頁」、`pitfalls.md`「整合測試」、`brand.md`、README；
+新增 `templates/itest.plan.example.mjs`、`templates/itest.outline.example.md`，`present.config.example.json` 加 `itest` 區塊
+
+### 測試
+
+- `tests/test_deck_itest.py`（8 項）：頁序、改判、fixed、GT2 未判讀／過期、嚴重度、分頁、與操作說明合成
+- `tests/itest_runner.test.mjs`（`node --test tests/*.test.mjs`）：規則單元測試＋對 `tests/fixtures/itest-app.html`（故意放了例外、NaN、
+  沒反應的按鈕、刪除鈕、表單驗證）實跑一次並核對每一個判定
+
 ## 0.11.0 — 2026-10-04
 
 **行為變更**：PDF／HTML 檔名加上用途。之前照舊檔名寫好的 `render.mjs --html "…"` 指令要換成 `write()` 印出的新檔名。
