@@ -1,5 +1,6 @@
 /**
  * deck.html → PDF（＋每頁預覽 PNG），並做版面、目錄、獨立性檢查；PDF 超過上限自動整份壓縮。
+ * 頁面尺寸照 HTML 的 .slide：簡報 1600×900（deck_kit），測試指引 A4 直式（guide_kit；預覽 PNG 用 2 倍解析度）。
  * 用法：node scripts/render.mjs --html deck.html [--pdf 手冊.pdf] [--png preview] [--max-mb 20] [--no-compress] [--pdf-timeout 600]
  *
  * 檢查（任一項不過 exit 1）：
@@ -44,6 +45,11 @@ await p.evaluate(async () => {
   await document.fonts.ready;
   await Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))));
 });
+// 頁面尺寸：讀第一個 .slide（簡報 1600×900；測試指引 A4 約 793.7×1122.5）
+const size = await p.evaluate(() => {
+  const r = document.querySelector(".slide")?.getBoundingClientRect();
+  return r ? { w: r.width, h: r.height } : { w: 1600, h: 900 };
+});
 const broken = await p.evaluate(() => [...document.images].filter((i) => !i.naturalWidth).map((i) => i.getAttribute("src")));
 if (broken.length) console.log("圖片載入失敗：", broken.join("、"));
 
@@ -75,7 +81,7 @@ const toc = await p.evaluate(() => {
   return { count: tocs.length, first: slides.indexOf(tocs[0]) + 1, wrong };
 });
 const tocBad = !toc.count || toc.wrong.length;
-if (!toc.count) console.log("沒有目錄頁：用 deck_kit 的 Deck.write() 產生 HTML（會自動插目錄），不要手刻整份 HTML");
+if (!toc.count) console.log("沒有目錄頁：用 deck_kit 的 Deck.write()／guide_kit 的 Guide.write() 產生 HTML（會自動插目錄），不要手刻整份 HTML");
 else if (toc.wrong.length) console.log("目錄頁碼不對：\n  " + toc.wrong.join("\n  "));
 else console.log(`目錄：第 ${toc.first} 頁起 ${toc.count} 頁，頁碼正確`);
 
@@ -92,14 +98,15 @@ const over = await p.evaluate(() => [...document.querySelectorAll(".slide")].map
 console.log(over.length ? over.join("\n") : "版面檢查：沒有超出");
 
 // outline：依 h1／h2 產生 PDF 書籤側欄；目錄的 <a href="#pNN"> 在 PDF 裡是可點的內部連結
-await p.pdf({ path: pdf, width: "1600px", height: "900px", printBackground: true, preferCSSPageSize: true, outline: true, tagged: true, timeout: pdfTimeout });
+await p.pdf({ path: pdf, width: `${size.w}px`, height: `${size.h}px`, printBackground: true, preferCSSPageSize: true, outline: true, tagged: true, timeout: pdfTimeout });
 console.log("PDF", pdf, (fs.statSync(pdf).size / 1048576).toFixed(1) + " MB");
 if (pngDir) {
   fs.mkdirSync(pngDir, { recursive: true });
   const n = await p.evaluate(() => document.querySelectorAll(".slide").length);
-  await p.setViewport({ width: 1600, height: 900 * n, deviceScaleFactor: 1 });
+  // 直式小頁（A4）用 2 倍解析度，G4 目視才看得清楚小字
+  await p.setViewport({ width: Math.ceil(size.w), height: Math.ceil(size.h * n), deviceScaleFactor: size.w < 1200 ? 2 : 1 });
   for (let i = 0; i < n; i++) {
-    await p.screenshot({ path: path.join(pngDir, `p${String(i + 1).padStart(2, "0")}.png`), clip: { x: 0, y: 900 * i, width: 1600, height: 900 } });
+    await p.screenshot({ path: path.join(pngDir, `p${String(i + 1).padStart(2, "0")}.png`), clip: { x: 0, y: size.h * i, width: size.w, height: size.h } });
   }
   console.log("preview", n, "→", pngDir, "（原始畫質，G4 目視用）");
 }

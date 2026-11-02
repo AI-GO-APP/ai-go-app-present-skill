@@ -2,18 +2,21 @@
 name: ai-go-app-present
 description: >
   Use when the user wants delivery material for an AI GO custom app: an operation manual, a weekly
-  progress report to the client, a test report, a feature showcase, or an integration test run with report
+  progress report to the client, a test report, a feature showcase, an integration test run with report,
+  or a test guideline for the client's testers
   （操作說明／操作手冊、教學文件、使用說明、交接簡報；進度報告、週報、交付通知、給客戶的說明、跟客戶說做好了；
   測試報告、驗收數據、準確度；功能展示、功能導覽、demo 簡報；整合測試、端到端測試、E2E、UI 全點一次、驗收測試、
-  QA、找 bug）。第一步一定先讓使用者選用途（五選、可多選、至少一種）：操作說明／測試報告／功能展示／整合測試產出
+  QA、找 bug；測試指引、測試手冊、測試腳本、UAT、驗收測試文件、給客戶測試的文件、check list、回報方式）。
+  第一步一定先讓使用者選用途（六選、可多選、至少一種）：操作說明／測試報告／功能展示／整合測試產出
   16:9 閱讀式簡報 PDF（多選合成一份；整合測試會實際把每頁、每個 UI、每條流程點跑一次，通過的文字逐條列、
-  未通過與疑慮逐項截圖），進度報告產出可直接貼給客戶的文字訊息（FDE 一週一則、週會前 48 小時）。
+  未通過與疑慮逐項截圖），測試指引產出 A4 可列印文件（不同身分、工作流程步驟、每步預期畫面、檢查清單、回報方式，
+  給客戶的測試人員照著測），進度報告產出可直接貼給客戶的文字訊息（FDE 一週一則、週會前 48 小時）。
   含可重跑的截圖、測試、排版、渲染、訊息檢查腳本與提示詞。
 ---
 
 # AI GO App 交付文件產生器
 
-一支 AI GO custom app 交付給客戶的五種東西，都從這裡做：
+一支 AI GO custom app 交付給客戶的六種東西，都從這裡做：
 
 | 用途 | 產出 | 給誰、什麼時候 | 細節 |
 |---|---|---|---|
@@ -21,13 +24,16 @@ description: >
 | **測試報告** | 同上（1～2 頁） | 客戶決策者；有既有測試數據時 | 只整理開發過程已有的測試數據（準確度、正確率），照來源抄 |
 | **功能展示** | 同上（約 5～10 頁） | 決策者、demo；不教操作 | 每個重點功能一頁：全頁截圖＋圖解＋一句「這能幫你做什麼」 |
 | **整合測試** | 同上（頁數看結果） | 專案負責人、驗收；交付前 | **這次實際跑**：每頁、每個可點 UI、每條端到端流程都點一次並判斷合不合理；通過的逐條文字、未通過與疑慮逐項截圖（references/integration-test.md） |
+| **測試指引** | A4 直式 PDF（可列印填寫） | 客戶端要動手測的人（店長、客服、QA）；交付測試／驗收前 | 不同身分與帳號、一條流程一頁（步驟＋**每步預期畫面**＋勾選）、權限檢查、判定標準、**回報方式**、總檢查清單與問題回報單（references/test-guide.md） |
 | **進度報告** | 文字訊息（可補附圖） | FDE 給客戶；一週一則、週會前 48 小時 | 這週做好了什麼、怎麼驗、要決定的事、何時回覆（references/progress-report.md） |
 
-PDF 類（操作說明／測試報告／功能展示／整合測試）多選時**合成一份**，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明。
+16:9 簡報類（操作說明／測試報告／功能展示／整合測試）多選時**合成一份**，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明。
+測試指引是 A4 直式的**另一份** PDF，不合進簡報。
 
-**樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md）：深底封面押製作日、**封面後一定是目錄頁**、
+**樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md；測試指引同一套品牌、改 A4 直式）：深底封面押製作日、**封面後一定是目錄頁**、
 每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 用途 YYYYMMDD」**（PDF 與 HTML 同名；用途照選的、依固定順序用「・」串，
-例：`AI GO 展示公司 訂單中心 功能展示・操作說明 20261004.pdf`、`AI GO 展示公司 訂單中心 整合測試 20261007.pdf`；進度報告存檔也照這個規則）。
+例：`AI GO 展示公司 訂單中心 功能展示・操作說明 20261004.pdf`、`AI GO 展示公司 訂單中心 整合測試 20261007.pdf`、
+`AI GO 展示公司 訂單中心 測試指引 20261102.pdf`；進度報告存檔也照這個規則）。
 **交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
@@ -65,8 +71,8 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
 Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途**——每次都問，不從需求推測、不沿用上一次：
 
 - 用 AskUserQuestion **一次問兩題**（每題最多 4 個選項，所以拆開；問法見 references/prompts.md §0）：
-  1. PDF 文件（`multiSelect: true`）：**操作說明／測試報告／功能展示／整合測試**
-  2. 進度報告（單選）：**要／不用**（文字訊息）
+  1. 簡報 PDF（`multiSelect: true`）：**操作說明／測試報告／功能展示／整合測試**
+  2. 其他文件（單選）：**都不用／測試指引／進度報告／兩者都要**（測試指引＝A4 PDF；進度報告＝文字訊息）
   可以把從需求推測的那個標成建議，但要使用者自己選
 - 兩題合計**至少一種**；都沒選就不往下做
 - 選完照下表走，選了幾種就做幾種：
@@ -75,9 +81,10 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 |---|---|
 | 操作說明／測試報告／功能展示（任一） | P0～P7（references/workflow.md）；`Deck(purposes=[…])` 傳入選的 PDF 類用途，合成一份 PDF |
 | 整合測試 | IT0～IT7（references/integration-test.md）：範圍與安全 → 盤點 → 測試計畫（GT1）→ `scripts/itest.mjs` 執行 → 判讀（GT2）→ `d.itest()`；和其他 PDF 用途合成一份時共用 P6／P7 |
+| 測試指引 | TG0～TG6（references/test-guide.md）：範圍（讀者、測試站、身分與帳號、回報方式）→ 盤點身分與流程 → 大綱（GH1）→ 截預期畫面 → **照指引親自走一遍（GH2）** → `Guide` 輸出 A4 PDF |
 | 進度報告 | references/progress-report.md：問交付站連結與對方有沒有會用 AI 的人 → `scripts/progress.py` 產文字訊息 |
 
-`Deck` 沒給 `purposes` 會直接報錯；`purposes` 放了「進度報告」也會報錯（它不出 PDF）。
+`Deck` 沒給 `purposes` 會直接報錯；`purposes` 放了「進度報告」或「測試指引」也會報錯（進度報告不出 PDF；測試指引用 `guide_kit.Guide`）。
 
 ## 何時用
 
@@ -85,6 +92,7 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 - 「這週要給客戶的說明」「跟王經理說做好了」「週報」
 - 「把準確度測試結果整理給客戶看」「做一份功能展示給老闆 demo」
 - 「交付前把整個 app 全部點過一遍」「跑一次整合測試／端到端測試，列出有問題的地方」
+- 「出一份測試指引給客戶的店長和客服測」「UAT 測試文件，要有 check list 跟回報方式」
 - 介面改版後要重出手冊（工作資料夾還在就從 P4 重跑）
 
 不管哪一種說法，都先走 Phase 0 讓使用者選用途。
@@ -102,6 +110,7 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 
 只選進度報告時只需要 Python 3（零相依）；要補附圖才需要截圖工具與登入憑證。
 整合測試需要的和截圖一樣（Node＋Chrome＋登入憑證），另外要一個可以改資料的**測試帳號**。
+測試指引需要的和截圖一樣，另外**每個要測的身分各一個測試帳號**（拍該身分的畫面、親自走一遍用；密碼不進文件）。
 
 ## 流程（PDF 類，詳見 references/workflow.md）
 
@@ -138,6 +147,17 @@ node <skill>/scripts/itest.mjs --config present.config.json --list       # 列�
 node <skill>/scripts/itest.mjs --config present.config.json              # 執行 → itest/results.json、itest/review.json
 python <skill>/scripts/contact_sheet.py "shots/it-*.png" --out disc/it-sheet   # GT2：看截圖，寫 review.json 的判讀
 python deck_content.py                                                   # d.itest() 產報告頁；之後同 P6 render.mjs
+```
+
+測試指引（references/test-guide.md）：
+
+```bash
+#   → 照 templates/guide.outline.example.md 提大綱，等使用者核准（GH1）；預期畫面截圖照 P4 用 shoot.mjs 拍
+cp <skill>/templates/guide_content.example.py guide_content.py         # 改 SKILL 路徑，照大綱寫；每一步都要有預期畫面
+#   → 用每個身分的測試帳號照文件親自走一遍（GH2，prompts.md §14），預期畫面不對就改
+python guide_content.py                                                  # →「AI GO 租戶名 App名 測試指引 YYYYMMDD.html」
+node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 測試指引 YYYYMMDD.html" --png preview   # 同名 A4 PDF
+python <skill>/scripts/contact_sheet.py "preview/p*.png" --cols 4 --rows 2 --cell 560x792 --out disc/pv --no-label   # G4
 ```
 
 進度報告：
@@ -182,6 +202,10 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
     端到端只動測試資料，會對外送出或扣款的寫進 `t.skip` 附原因。自動偵測只抓明顯的錯，**畫面與訊息合不合理要看截圖判斷**，
     每個未通過／疑慮都寫判讀才能出報告（GT2，`d.itest()` 會擋）。跑的過程不修 bug；交付後問使用者要不要修，
     修完重跑、標「修正後重測通過」（references/integration-test.md）。
+17. **測試指引的預期畫面要親自走過**：使用者選了測試指引才做。A4 直式另一份 PDF，讀者是要動手測的人；
+    一定有不同身分（`roles()`）、一條流程一頁（每一步「操作｜預期畫面｜✓」）、回報方式（`report()`）、總檢查清單與問題回報單。
+    每一步的預期畫面都要用該身分的測試帳號照著文件走過一遍確認（GH2），**不把從程式碼推測的、或有 bug 的行為寫成預期**；
+    帳號只寫代碼、密碼私下給（`write()` 會擋）；回覆時效只寫 FDE 承諾得了的（references/test-guide.md）。
 
 ## 檔案
 
@@ -193,20 +217,22 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
 | `scripts/prep_state.py` | 資料狀態備份／還原／比對（標準函式庫） |
 | `scripts/desktop_shot.py` | 瀏覽器以外的畫面：桌面視窗／螢幕／區域截圖，進同一份 `shots.json`（Windows 零相依；macOS／Linux 盡力） |
 | `scripts/deck_kit.py` ＋ `deck.css` | AI GO 品牌簡報元件（瀏覽器框／視窗框截圖＋圖解、終端框 `term()`、步驟、表格、提示框、封面押製作日、自動目錄 `toc()`、用途 `purposes`／`section()`、測試報告 `acceptance()`、功能展示 `showcase()`、整合測試 `itest()`、分隔頁（自動頁目）、封底）與檔名規則 |
-| `scripts/render.mjs` | HTML → 同名 PDF（含書籤）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
+| `scripts/render.mjs` | HTML → 同名 PDF（含書籤；頁面尺寸照 HTML：簡報 1600×900、測試指引 A4）＋ 每頁 PNG ＋ 溢出／擠壓、目錄、獨立性檢查；超過 20 MB 自動壓縮 |
 | `scripts/compress_pdf.py` | 整份 PDF 壓縮（Ghostscript 或 pypdf）＋ 驗證頁數／圖片／連結／書籤不變、無外部參照、字型內嵌 |
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `scripts/itest.mjs` ＋ `itest_core.mjs` | 整合測試：冒煙／UI 巡檢／端到端案例執行、自動偵測（JS 例外、API 錯誤、技術字樣、錯誤提示、沒反應、卡載入）、問題截圖標框、重現、`--list` 列案例；產出 `itest/results.json` 與判讀檔 `review.json` |
+| `scripts/guide_kit.py` ＋ `guide.css` | 測試指引（A4 直式）：`Guide` 沿用 `Deck` 的截圖與元件，頁序固定（封面 → 目錄 → 測試準備 → 身分與帳號 → 怎麼執行 → 流程 → 權限檢查 → 判定標準 → 回報方式 → 總檢查清單 → 問題回報單 → 送出前確認），缺必填、密鑰會擋 |
 | `scripts/progress.py` | 進度報告：組訊息（一週一則，對方有 AI 時上下兩段，可附圖）＋用語與安全檢查（標準函式庫） |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
-| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、進度報告輸入（`progress.example.json`）、整合測試計畫（`itest.plan.example.mjs`）與計畫提案（`itest.outline.example.md`） |
+| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、進度報告輸入（`progress.example.json`）、整合測試計畫（`itest.plan.example.mjs`）與計畫提案（`itest.outline.example.md`）、測試指引內容（`guide_content.example.py`）與大綱提案（`guide.outline.example.md`） |
 | `references/workflow.md` | 七階段與四道關卡 |
 | `references/brand.md` | AI GO 品牌規範（色彩、字體、幾何、固定頁、截圖框、檔名） |
 | `references/writing-guide.md` | 語氣、頁型、「情境 → 結果」寫法、說法查證 |
 | `references/screenshot-guide.md` | 截圖種類、spec 寫法、12 個技巧 |
 | `references/layout-guide.md` | 畫布、圖片尺寸、字級、G4 檢查表 |
-| `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、選用途、測試數據盤點、進度報告詢問、整合測試範圍／盤點／判讀 |
+| `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、選用途、測試數據盤點、進度報告詢問、整合測試範圍／盤點／判讀、測試指引範圍／走一遍 |
 | `references/integration-test.md` | 整合測試：架構（四個測試層、自動偵測、合理性判讀）、IT0～IT7、案例 API、判讀檔、報告頁、安全規則 |
+| `references/test-guide.md` | 測試指引：和整合測試／操作說明的差別、TG0～TG6、頁序與 API、判定與統計 |
 | `references/progress-report.md` | 進度報告：要問的兩件事、訊息格式、附圖、上下兩段、用語規則、安全規則 |
 | `references/pitfalls.md` | 實戰踩雷 |
