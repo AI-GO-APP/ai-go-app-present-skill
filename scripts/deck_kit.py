@@ -9,7 +9,7 @@
     html = d.write()          # →「AI GO 租戶名 App名 用途 YYYYMMDD.html」，PDF 同名
 
 purposes＝Phase 0 使用者選的用途（PDF 類：功能展示／測試報告／整合測試／操作說明，至少一種；進度報告是文字訊息，
-用 scripts/progress.py）。多選合成一份 PDF，內容頁依「功能展示 → 測試報告 → 整合測試 → 操作說明」排：
+用 scripts/progress.py；測試指引是 A4 直式獨立文件，用 scripts/guide_kit.py）。多選合成一份 PDF，內容頁依「功能展示 → 測試報告 → 整合測試 → 操作說明」排：
   功能展示 d.showcase(...)、測試報告 d.acceptance(...)、整合測試 d.itest(...)（讀 itest.mjs 的結果）、
   操作說明 d.slide()/d.divider()/d.raw()。
   slide()/divider()/raw() 預設屬於操作說明（沒選操作說明時屬於第一個選的用途）；d.section(用途) 可切換。
@@ -35,10 +35,11 @@ _TOC_ROWS = 15          # 目錄每欄最多列數（一般字級）
 _TOC_ROWS_DENSE = 18    # dense 字級
 _TOC_HOWTO_ROWS = 3     # 目錄底部「讀法」列佔掉的列數
 _TOC_HEAD_ROWS = 3      # 同一欄疊第二組時，組標題（含上方間距）佔掉的列數（實測約 2.6 列）
-MANUAL, TEST, SHOWCASE, PROGRESS, ITEST = "操作說明", "測試報告", "功能展示", "進度報告", "整合測試"
-PURPOSES = (MANUAL, PROGRESS, TEST, SHOWCASE, ITEST)   # Phase 0 的選項（可多選、至少一種）
-DECK_ORDER = (SHOWCASE, TEST, ITEST, MANUAL)           # 出 PDF 的用途；多選合成一份時的順序
-_TITLE = {SHOWCASE: "功能展示", TEST: "測試報告", ITEST: "整合測試報告", MANUAL: "操作手冊"}
+MANUAL, TEST, SHOWCASE, PROGRESS, ITEST, GUIDE = "操作說明", "測試報告", "功能展示", "進度報告", "整合測試", "測試指引"
+PURPOSES = (MANUAL, PROGRESS, TEST, SHOWCASE, ITEST, GUIDE)   # Phase 0 的選項（可多選、至少一種）
+DECK_ORDER = (SHOWCASE, TEST, ITEST, MANUAL)           # 16:9 簡報的用途；多選合成一份時的順序
+_FILE_ORDER = DECK_ORDER + (GUIDE, PROGRESS)           # 檔名裡的用途順序（測試指引 A4、進度報告文字各自一份）
+_TITLE = {SHOWCASE: "功能展示", TEST: "測試報告", ITEST: "整合測試報告", MANUAL: "操作手冊", GUIDE: "測試指引"}
 ACC_PART = TEST
 SHOW_MAX_PAGES, SHOW_MAX_NOTES, SHOW_MAX_VALUE = 12, 5, 40
 ACC_MAX_PAGES, ACC_MAX_CARDS, ACC_MAX_ROWS = 2, 4, 8
@@ -54,11 +55,13 @@ def deck_filename(tenant, app, made, ext=".pdf", purposes=()):
     """檔名規則：「AI GO 租戶名 App名 用途 YYYYMMDD」。用途照 Phase 0 選的、依固定順序用「・」串
     （例：功能展示・操作說明），同一天分開產不同用途也不會撞名。檔名不能用的字元換成底線。"""
     clean = lambda t: "".join("_" if ch in _BAD else ch for ch in str(t)).strip()
-    use = "・".join(p for p in DECK_ORDER if p in purposes)
+    use = "・".join(p for p in _FILE_ORDER if p in purposes)
     return f"AI GO {clean(tenant)} {clean(app)} {use + ' ' if use else ''}{made:%Y%m%d}{ext}"
 
 
 class Deck:
+    _BAR = 26        # 瀏覽器框／視窗框上方深色列的高度（px，和 CSS 的 .shot.framed .bar 一致）
+
     def __init__(self, tenant, app, purposes=None, shots="shots", made=None, version="", title=None, extra_css=""):
         """tenant＝租戶名（例：展示股份有限公司）；app＝平台上的 App 名；made＝製作日（預設今天，台灣時間）。
         purposes＝Phase 0 使用者選的 PDF 用途（必填，至少一種）：功能展示／測試報告／操作說明。
@@ -85,6 +88,9 @@ class Deck:
         if PROGRESS in chosen:
             raise ValueError("進度報告是文字訊息、不出 PDF：用 scripts/progress.py（references/progress-report.md）。"
                              "purposes 只放 PDF 類：" + "／".join(DECK_ORDER))
+        if GUIDE in chosen:
+            raise ValueError("測試指引是 A4 直式的獨立文件、不和簡報合成：用 scripts/guide_kit.py 的 Guide"
+                             "（references/test-guide.md）。purposes 只放 16:9 簡報：" + "／".join(DECK_ORDER))
         bad = [p for p in chosen if p not in DECK_ORDER]
         if bad:
             raise ValueError(f"不認得的用途 {bad}：PDF 類只有 " + "／".join(DECK_ORDER))
@@ -130,7 +136,7 @@ class Deck:
         if frame is True:
             frame = "browser"
         framed = bool(frame)
-        bar = 26 if framed else 0
+        bar = self._BAR if framed else 0
         s = maxw / m["w"]
         if maxh:
             s = min(s, (maxh - bar) / m["h"])
