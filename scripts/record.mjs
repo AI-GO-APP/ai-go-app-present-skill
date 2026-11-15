@@ -18,6 +18,8 @@
  *
  * 錄法：Chrome DevTools 的 screencast（畫面有變才送一格 JPEG，附時間戳）→ 依時間戳組成固定 30 fps 的 raw.mkv。
  * 視窗 1600×900 × dsf 1.2 ＝ 1920×1080，文字比 Playwright recordVideo 的 webm 清楚。
+ * 功能展示影片後製會推近鏡頭（zoom）：錄的時候加 --dsf 1.8（2880×1620），推近 1.5 倍後還是原生解析度、不會糊。
+ * 游標沿貝茲弧線移動（motion.mjs），不走直線。
  * 輸出：--out 資料夾裡的 raw.mkv、events.jsonl、session.json（含租戶名與 App 名，後製自動帶檔名）。
  */
 import fs from "node:fs";
@@ -25,6 +27,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadConfig, createSession, sleep } from "./lib.mjs";
+import { sampleCursor, cursorDuration } from "./motion.mjs";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -57,8 +60,12 @@ const CURSOR = `(() => {
     document.documentElement.appendChild(c);
     return c;
   };
-  window.__recCursor = (x, y, ms) => { const e = make(); e.style.transition = "transform " + ms / 1000 + "s cubic-bezier(.4,0,.2,1)";
-    e.style.transform = "translate(" + x + "px," + y + "px)"; window.__recX = x; window.__recY = y; };
+  // pts：路徑上時間等距的點（motion.mjs 的貝茲弧線，已套緩動）；ms＝0 直接跳到最後一點
+  window.__recCursor = (pts, ms) => { const e = make(); const tr = (q) => "translate(" + q[0] + "px," + q[1] + "px)";
+    const last = pts[pts.length - 1];
+    if (e.__anim) e.__anim.cancel();
+    e.style.transform = tr(last); window.__recX = last[0]; window.__recY = last[1];
+    if (ms > 0 && pts.length > 1) e.__anim = e.animate(pts.map((q) => ({ transform: tr(q) })), { duration: ms, easing: "linear" }); };
   window.__recRipple = (x, y) => { const r = document.createElement("div");
     Object.assign(r.style, { position: "fixed", left: x - 22 + "px", top: y - 22 + "px", width: "44px", height: "44px", borderRadius: "50%",
       border: "3px solid #1F80FF", background: "rgba(31,128,255,.18)", zIndex: 2147483646, pointerEvents: "none",
@@ -97,15 +104,25 @@ async function main() {
     const ev = { ts: Date.now() / 1000, kind, when: "at", text, ...extra };
     events.push(ev);
     console.log(kind === "chapter" ? "══ " + text : "  " + (text || ""));
+    return ev;
   };
+  const done = (ev) => { ev.end = Date.now() / 1000; };   // 這一步的操作做完的時刻（後製的鏡頭推近到這裡才拉回）
   let cur = { x: VW / 2, y: VH / 2 };
   const px = (v) => Math.round(v * DSF);   // CSS px → 錄影畫面像素
+  // 游標沿貝茲弧線移過去（慢 → 快 → 慢）；真的滑鼠跟著同一條路徑走，hover 效果才會跟畫面上的游標同步
   async function moveTo(x, y) {
-    const d = Math.hypot(x - cur.x, y - cur.y), ms = Math.round(Math.min(900, 300 + d * 0.6));
-    await p.evaluate((a, b, m) => window.__recCursor && window.__recCursor(a, b, m), x, y, ms);
-    await p.mouse.move(x, y, { steps: 8 });
-    cur = { x, y };
-    await sleep(ms + 200);
+    const to = { x, y }, ms = cursorDuration(cur, to);
+    const pts = sampleCursor(cur, to, 24, { w: VW, h: VH });
+    await p.evaluate((q, m) => window.__recCursor && window.__recCursor(q, m), pts, ms);
+    const t0 = Date.now();
+    for (let i = 3; i < pts.length; i += 3) {
+      await p.mouse.move(pts[i][0], pts[i][1]);
+      const left = t0 + (ms * i) / (pts.length - 1) - Date.now();
+      if (left > 0) await sleep(left);
+    }
+    await p.mouse.move(x, y);
+    cur = to;
+    await sleep(Math.max(0, t0 + ms - Date.now()) + 200);
   }
   // spec 可以直接寫 CSS 選擇器字串（取第一個），或 lib.mjs 的 spec 物件
   const norm = (spec) => (typeof spec === "string" ? { sel: spec, pick: "first" } : spec);
@@ -121,7 +138,7 @@ async function main() {
     async chapter(text, sub = "") { log("chapter", text, sub ? { sub } : {}); },
     async go(route, text, wait = 2500) {
       await s.go(route, wait);
-      await p.evaluate((a, b) => window.__recCursor && window.__recCursor(a, b, 0), cur.x, cur.y);
+      await p.evaluate((a, b) => window.__recCursor && window.__recCursor([[a, b]], 0), cur.x, cur.y);
       if (text) log("step", text);
       await sleep(300);
     },
@@ -136,24 +153,40 @@ async function main() {
     async type(spec, value, text, { enter = false, delay = 60, wait = 600 } = {}) {
       const { el, x, y } = await target(spec);
       await moveTo(x, y);
-      log("step", text, { x: px(x), y: px(y) });
+      const ev = log("step", text, { x: px(x), y: px(y) });
       await p.evaluate((a, b) => window.__recRipple(a, b), x, y);
       await p.mouse.click(x, y);
       await p.evaluate((e) => { if ("value" in e) { e.value = ""; e.dispatchEvent(new Event("input", { bubbles: true })); } }, el);
       await p.keyboard.type(value, { delay });
       if (enter) await p.keyboard.press("Enter");
+      done(ev);
       await sleep(wait);
     },
     async select(spec, value, text, { wait = 900 } = {}) {
       const { el, x, y } = await target(spec);
       await moveTo(x, y);
-      log("step", text, { x: px(x), y: px(y) });
+      const ev = log("step", text, { x: px(x), y: px(y) });
       await p.evaluate((a, b) => window.__recRipple(a, b), x, y);
       await p.evaluate((e, val) => {
         const o = [...e.options].find((k) => k.value === val || k.textContent.trim() === val);
         if (!o) throw new Error("選單裡沒有 " + val);
         e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); e.dispatchEvent(new Event("change", { bubbles: true }));
       }, el, value);
+      done(ev);
+      await sleep(wait);
+    },
+    // 日期／時間這類鍵盤打不準的欄位：用原生 setter 填值（React 受控欄位才收得到 onChange）
+    async fill(spec, value, text, { wait = 700 } = {}) {
+      const { el, x, y } = await target(spec);
+      await moveTo(x, y);
+      const ev = log("step", text, { x: px(x), y: px(y) });
+      await p.evaluate((a, b) => window.__recRipple(a, b), x, y);
+      await p.evaluate((e, val) => {
+        const proto = e instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, "value").set.call(e, val);
+        e.dispatchEvent(new Event("input", { bubbles: true })); e.dispatchEvent(new Event("change", { bubbles: true }));
+      }, el, value);
+      done(ev);
       await sleep(wait);
     },
     async say(text, spec, { wait = 300 } = {}) {
@@ -200,13 +233,17 @@ async function main() {
   list.push(`file '${frames.at(-1).file}'`);
   fs.writeFileSync(path.join(frameDir, "list.ffconcat"), list.join("\n") + "\n");
   const W = px(VW) - (px(VW) % 2), H = px(VH) - (px(VH) % 2);
+  // 事件與 session 先寫：ffmpeg 失敗時畫格還在 _frames，補裝 ffmpeg 後手動組片即可，不必重錄（重錄會再建一次測試資料）
+  fs.writeFileSync(path.join(outDir, "events.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n");
+  const sess = { kind: "web", raw: "raw.mkv", region: [0, 0, W, H], video_start: t0, dsf: DSF, frames: frames.length,
+    seconds: +(stopTs - t0).toFixed(2), meta, state: "frames" };
+  fs.writeFileSync(path.join(outDir, "session.json"), JSON.stringify(sess, null, 1));
   const r = spawnSync(ffmpegBin(), ["-hide_banner", "-nostdin", "-y", "-f", "concat", "-safe", "0", "-i", "list.ffconcat",
     "-vf", `fps=${FPS},scale=${W}:${H}:flags=lanczos,format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14",
     "-g", String(FPS), path.join(outDir, "raw.mkv")], { cwd: frameDir, encoding: "utf8" });
-  if (r.status !== 0) throw new Error("ffmpeg 組影片失敗：" + (r.stderr || "").slice(-1500) + "\n（skill 目錄 npm install 會裝 ffmpeg-static，或設 FFMPEG）");
-  fs.writeFileSync(path.join(outDir, "events.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n");
-  fs.writeFileSync(path.join(outDir, "session.json"), JSON.stringify({ kind: "web", raw: "raw.mkv", region: [0, 0, W, H],
-    video_start: t0, dsf: DSF, frames: frames.length, seconds: +(stopTs - t0).toFixed(2), meta, state: "done" }, null, 1));
+  if (r.status !== 0) throw new Error("ffmpeg 組影片失敗：" + (r.stderr || r.error?.message || "").slice(-1500) +
+    `\n畫格留在 ${frameDir}（list.ffconcat）。skill 目錄 npm install 會裝 ffmpeg-static，或設 FFMPEG，再用 ffmpeg 組成 raw.mkv`);
+  fs.writeFileSync(path.join(outDir, "session.json"), JSON.stringify({ ...sess, state: "done" }, null, 1));
   fs.rmSync(frameDir, { recursive: true, force: true });
   console.log(`錄影結束 ${path.join(outDir, "raw.mkv")}（${(stopTs - t0).toFixed(1)}s，${frames.length} 格，${events.filter((e) => e.kind === "step").length} 步）`);
   if (err) process.exit(1);

@@ -10,7 +10,9 @@
   - 畫面靜止超過 --idle 秒（預設 1.2）：壓成 0.6 秒；靜止超過 4 秒的壓成 1.2 秒並標「快轉 ▶▶ 略過 N 秒」
   - 每一步動作前：凍結畫面 1～3 秒，字幕＋點擊位置先出現，讀完才動（依字數，--cps 每秒字數，預設 5）
   - 一步的字幕總時長 ≥ 0.8 + 字數 / cps；動作後畫面太快換下一步時，凍結時間自動拉長
-用途差別：操作說明的字幕帶步驟編號；功能展示不編號、章節字卡多一行「這能幫你做什麼」（chapter 的 sub）。
+用途差別：操作說明的字幕帶步驟編號；功能展示不編號、章節字卡多一行「這能幫你做什麼」（chapter 的 sub），
+  而且鏡頭會動（--zoom，video_zoom.py）：每一步在讀字幕的停格裡推近到要操作的地方，做完拉回全景；
+  接下來的變化都還在近景裡（同一張表單連續填欄位）就留在近景橫移。推近、拉回、橫移都用貝茲緩動（慢 → 快 → 慢）。
 需要：ffmpeg（skill 目錄 npm install 會裝 ffmpeg-static；或 PATH 上的 ffmpeg、環境變數 FFMPEG）、Pillow。
 """
 from __future__ import annotations
@@ -31,6 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from deck_kit import MANUAL, SHOWCASE, TW, deck_filename  # noqa: E402
+import video_zoom as vz  # noqa: E402
 
 VIDEO_PURPOSES = (SHOWCASE, MANUAL)   # 可以選影片輸出的用途（Phase 0）
 _VIDEO_TITLE = {MANUAL: "操作說明", SHOWCASE: "功能展示"}
@@ -172,8 +175,14 @@ def idle_spans(act: list[bool], boxes: list, af: int, dur: float, idle: float, a
 
 
 def freezes(src: Path, idle: float, dur: float, w: int, h: int) -> list[tuple[float, float]]:
-    """解碼成 10 fps、寬 ≤ 1280 的灰階逐格比對。ffmpeg 的 freezedetect 看整格平均差異，
-    一次貼上一串字的變化太小抓不到，所以不用它。"""
+    """整支影片「沒有在操作」的區間。"""
+    act, boxes, af, (aw, ah) = analyze(src, w, h)
+    return idle_spans(act, boxes, af, dur, idle, aw * ah)
+
+
+def analyze(src: Path, w: int, h: int) -> tuple[list[bool], list, int, tuple[int, int]]:
+    """解碼成 10 fps、寬 ≤ 1280 的灰階逐格比對，回傳 (每格有沒有變, 變化範圍, 分析幀率, 分析解析度)。
+    ffmpeg 的 freezedetect 看整格平均差異，一次貼上一串字的變化太小抓不到，所以不用它。"""
     from PIL import Image
     AF = 10
     aw = min(1280, w) // 2 * 2
@@ -190,8 +199,9 @@ def freezes(src: Path, idle: float, dur: float, w: int, h: int) -> list[tuple[fl
                 return
             yield Image.frombytes("L", (aw, ah), buf)
     act, boxes = activity(frames())
+    p.stdout.close()
     p.wait()
-    return idle_spans(act, boxes, AF, dur, idle, size)
+    return act, boxes, AF, (aw, ah)
 
 
 def find_magenta(src: Path, fps: int, secs: float = 6.0) -> float | None:
@@ -262,8 +272,11 @@ def load_events(d: Path, sess: dict) -> list[dict]:
         if not line.strip():
             continue
         e = json.loads(line)
+        t0 = sess.get("video_start") or sess.get("launched") or 0
         if "t" not in e:
-            e["t"] = e["ts"] - (sess.get("video_start") or sess.get("launched") or 0)
+            e["t"] = e["ts"] - t0
+        if "end" in e:                   # 這一步操作做完的時刻（record.mjs 的打字、選值）
+            e["t_end"] = e["end"] - t0
         if "sx" in e:
             e["x"], e["y"] = e["sx"] - rx, e["sy"] - ry
         evs.append(e)
@@ -345,6 +358,32 @@ def plan_clips(evs: list[dict], fz: list[tuple[float, float]], dur: float, *, id
     return clips, T
 
 
+CAP_BAND = 0.8   # 操作點落在畫面最下面 20%（字幕列）時，這一步的字幕改放上方，免得蓋住要點的按鈕
+
+
+def caption_on_top(x: float, y: float, zoom: float | None = None) -> bool:
+    """操作點（0～1 的全畫面座標）會不會被底部字幕蓋住。推近時用近景裡的位置判斷（字幕在推近後才燒）。"""
+    if zoom:
+        bx, by, bs = vz.focus_box(x, y, zoom)
+        y = (y - by) / bs
+    return y > CAP_BAND
+
+
+def src_to_out(clips: list[dict], t: float) -> float | None:
+    """原始影片的 t 秒在成片的第幾秒（照剪輯表的快轉換算）；被剪掉的開頭回傳 None。"""
+    vids = [c for c in clips if c["type"] == "video"]
+    for i, c in enumerate(vids):
+        if c["s"] <= t < c["e"] or (i == len(vids) - 1 and abs(t - c["e"]) < 1e-6):
+            o = c["play_start"]
+            for pa, pb, sp, _ in c["pieces"]:
+                if t >= pb:
+                    o += (pb - pa) / sp
+                elif t > pa:
+                    o += (t - pa) / sp
+            return o
+    return None
+
+
 def main() -> int:
     for s in (sys.stdout, sys.stderr):
         try:
@@ -368,6 +407,9 @@ def main() -> int:
     ap.add_argument("--no-intro", action="store_true")
     ap.add_argument("--no-outro", action="store_true")
     ap.add_argument("--keep-head", action="store_true", help="保留第一個事件之前的畫面")
+    ap.add_argument("--zoom", default="auto", choices=("auto", "on", "off"),
+                    help="每一步推近鏡頭到要操作的地方、做完拉回（auto：功能展示開、操作說明關）")
+    ap.add_argument("--zoom-scale", type=float, default=1.5, help="推近幾倍（預設 1.5；錄影用 --dsf 1.8 才不會糊）")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
     t_start = time.time()
@@ -391,7 +433,9 @@ def main() -> int:
 
     src = raw if raw.suffix == ".mkv" else normalize(raw, work, FPS)
     dur, RW, RH = probe(src)
-    fz = freezes(src, a.idle, dur, RW, RH)
+    act_flags, act_boxes, AF, asize = analyze(src, RW, RH)
+    fz = idle_spans(act_flags, act_boxes, AF, dur, a.idle, asize[0] * asize[1])
+    zoom = a.zoom == "on" or (a.zoom == "auto" and a.purpose == SHOWCASE)
     print(f"原始 {dur:.1f}s {RW}x{RH}，靜止 {len(fz)} 段共 {sum(b - a for a, b in fz):.1f}s")
 
     evs = load_events(d, sess)
@@ -418,7 +462,13 @@ def main() -> int:
     sc = min(OW / RW, OH / RH)
     SW, SH = int(RW * sc) // 2 * 2, int(RH * sc) // 2 * 2
     PX, PY = (OW - SW) // 2, (OH - SH) // 2
-    vf_fit = f"scale={SW}:{SH}:flags=lanczos,pad={OW}:{OH}:{PX}:{PY}:color={BG},fps={FPS},format=yuv420p"
+    # 母片：要推近鏡頭時，各片段先用原始解析度（最多輸出的 2 倍）渲染，推近後才不會糊；不推近就等於輸出尺寸
+    mk = min(2.0, max(1.0, 1 / sc)) if zoom else 1.0
+    MW, MH = int(OW * mk) // 2 * 2, int(OH * mk) // 2 * 2
+    msc = min(MW / RW, MH / RH)
+    MSW, MSH = int(RW * msc) // 2 * 2, int(RH * msc) // 2 * 2
+    MPX, MPY = (MW - MSW) // 2, (MH - MSH) // 2
+    vf_fit = f"scale={MSW}:{MSH}:flags=lanczos,pad={MW}:{MH}:{MPX}:{MPY}:color={BG},fps={FPS},format=yuv420p"
 
     step_marks = []  # (字幕出現, 動作那一刻, 事件)：字幕從前一段尾巴的凍結開始
     for c in vids:
@@ -437,7 +487,7 @@ def main() -> int:
         i, c = i_c
         o = work / f"c{i:04d}.mp4"
         if c["type"] == "card":
-            run(["-f", "lavfi", "-i", f"color=c={BG}:s={OW}x{OH}:r={FPS}:d={c['dur'] + 0.3:.3f}", "-frames:v", str(frames(c)), *enc, str(o)])
+            run(["-f", "lavfi", "-i", f"color=c={BG}:s={MW}x{MH}:r={FPS}:d={c['dur'] + 0.3:.3f}", "-frames:v", str(frames(c)), *enc, str(o)])
             return o
         ps = c["pieces"]
         n = len(ps)
@@ -461,10 +511,12 @@ def main() -> int:
     u = OH / 1080
     B = lambda v: int(round(v * u))  # noqa: E731
     lines = []
+    fx_lines = []   # 點擊圈：推近鏡頭時要先燒在畫面上，跟著畫面一起放大（字幕、字卡在推近之後才燒，不跟著動）
 
     def dlg(st, en, style, text, layer=0):
         if en - st > 0.02:
-            lines.append(f"Dialogue: {layer},{ass_time(st)},{ass_time(en)},{style},,0,0,0,,{text}")
+            (fx_lines if zoom and style == "Fx" else lines).append(
+                f"Dialogue: {layer},{ass_time(st)},{ass_time(en)},{style},,0,0,0,,{text}")
 
     bar = f"{{\\an7\\pos(0,0)\\p1\\bord0\\shad0\\1c&HFF801F&}}m 0 0 l {B(12)} 0 l {B(12)} {OH} l 0 {OH}{{\\p0}}"
     fad = "\\fad(300,300)"
@@ -490,7 +542,9 @@ def main() -> int:
             dlg(st, en, "Title", f"{{\\an7\\pos({B(150)},{B(450)}){fad}}}{esc(title)}")
             dlg(st, en, "Label", f"{{\\an1\\pos({B(150)},{OH - B(110)}){fad}}}Urfit Technology Co., Ltd. · ai-go.app")
 
+    cap_on_top = lambda x, y: caption_on_top(x, y, a.zoom_scale if zoom else None)  # noqa: E731
     srt = []
+    untils = []
     for k, (frm, act, ev) in enumerate(step_marks):
         nxt = step_marks[k + 1][0] if k + 1 < len(step_marks) else None
         until = nxt if nxt is not None else total
@@ -500,9 +554,11 @@ def main() -> int:
         for c in timeline:              # 片尾字卡前也收掉
             if c.get("card") == "outro" and frm < c["start"] < until:
                 until = c["start"]
+        untils.append(until)
         if ev.get("text"):
             num = f"{{\\c&HECC94D&\\b1}}{k + 1}{{\\c&HFFFFFF&\\b0}} " if numbered else ""
-            dlg(frm, until, "Cap", num + esc(ev["text"]))
+            top = "{\\an8}" if "x" in ev and cap_on_top((PX + ev["x"] * sc) / OW, (PY + ev["y"] * sc) / OH) else ""
+            dlg(frm, until, "Cap", top + num + esc(ev["text"]))
             srt.append((frm, until, ev["text"]))
         if "x" in ev:
             x, y = PX + ev["x"] * sc, PY + ev["y"] * sc
@@ -523,10 +579,32 @@ def main() -> int:
                 dlg(t, t + ln, "Fast", f"{{\\an9\\pos({OW - B(40)},{B(36)})}}快轉 ▶▶ 略過 {skipped:.0f} 秒")
             t += ln
 
+    # ── 鏡頭（功能展示）：每一步推近到要操作的地方，做完拉回；接下來的變化都還在近景裡就留著、橫移到下一步 ──
+    keys = None
+    if zoom:
+        cand: list[dict | None] = []
+        for k, (frm, act, ev) in enumerate(step_marks):
+            if "x" not in ev:
+                cand.append(None); continue
+            rel = act + 0.6
+            done = src_to_out(timeline, ev["t_end"]) if "t_end" in ev else None
+            if done is not None:        # 打字、選值：做完才拉回
+                rel = max(rel, done + 0.4)
+            cand.append({"frm": frm, "act": act, "rel": rel, "limit": min(untils[k], total - 0.2), "A": ev["A"],
+                         "x": (PX + ev["x"] * sc) / OW, "y": (PY + ev["y"] * sc) / OH})
+        for k, f in enumerate(cand):
+            nxt = cand[k + 1] if k + 1 < len(cand) else None
+            if not f or not nxt or untils[k] < nxt["frm"] - 1e-6 or nxt["frm"] - f["rel"] > 2.5:
+                continue
+            bx, by, bs = vz.focus_box(f["x"], f["y"], a.zoom_scale)
+            view = ((bx * OW - PX) / SW, (by * OH - PY) / SH, ((bx + bs) * OW - PX) / SW, ((by + bs) * OH - PY) / SH)
+            f["chain"] = vz.reveal_time(act_boxes, AF, f["A"], nxt["A"], view, asize) is None
+        keys = vz.plan_camera([f for f in cand if f], zoom=a.zoom_scale)
+
     def style(name, size, bold, color, align, outline_col="&H00000000", border=0, outline=0, margin_v=0):
         return (f"Style: {name},{FONT},{B(size)},{color},&H000000FF,{outline_col},&H80000000,{-1 if bold else 0},0,0,0,"
                 f"100,100,0,0,{border},{outline},0,{align},{B(80)},{B(80)},{B(margin_v)},1")
-    ass = "\n".join([
+    ass = lambda body: "\n".join([  # noqa: E731
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {OW}", f"PlayResY: {OH}", "WrapStyle: 0",
         "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
@@ -538,8 +616,9 @@ def main() -> int:
         style("Bar", 10, False, "&H00FF801F", 7),
         style("Fx", 10, False, "&H00FF801F", 7),
         style("Fast", 30, True, "&H00FFFFFF", 9, "&H40FF801F", 3, B(10)),
-        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", *lines, ""])
-    (work / "captions.ass").write_text(ass, encoding="utf-8-sig")
+        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", *body, ""])
+    (work / "captions.ass").write_text(ass(lines), encoding="utf-8-sig")
+    (work / "fx.ass").write_text(ass(fx_lines), encoding="utf-8-sig")
     (work / "fonts").mkdir(exist_ok=True)  # libass 在 Windows 讀不到含磁碟代號的 fontsdir：複製到工作夾用相對路徑
     for f in font_files:
         shutil.copy(f, work / "fonts" / f.name)
@@ -553,13 +632,18 @@ def main() -> int:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = work / "final.mp4"
-    run(["-i", "joined.mp4", "-i", "chapters.txt", "-map_metadata", "1", "-map_chapters", "1", "-map", "0:v",
-         "-vf", "subtitles=captions.ass:fontsdir=fonts", "-c:v", "libx264", "-preset", "medium", "-crf", "22",
-         "-tune", "stillimage", "-pix_fmt", "yuv420p", "-movflags", "+faststart", tmp.name], cwd=work)
+    final = ["-i", "chapters.txt", "-map_metadata", "1", "-map_chapters", "1", "-map", "0:v",
+             "-vf", "subtitles=captions.ass:fontsdir=fonts", "-c:v", "libx264", "-preset", "medium", "-crf", "22"]
+    tail = ["-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+    if zoom:
+        vz.zoom_pass(ffmpeg_bin(), work, keys, src="joined.mp4", master=(MW, MH), out_size=(OW, OH), fps=FPS,
+                     pre_vf="subtitles=fx.ass:fontsdir=fonts", enc_args=[*final, *tail], out_name=tmp.name, jobs=a.jobs)
+    else:
+        run(["-i", "joined.mp4", *final, "-tune", "stillimage", *tail, tmp.name], cwd=work)
     shutil.move(str(tmp), out)
     out.with_suffix(".srt").write_text("".join(f"{i + 1}\n{srt_time(s)} --> {srt_time(e)}\n{t}\n\n"
                                                for i, (s, e, t) in enumerate(srt)), encoding="utf-8")
-    (d / "edit.json").write_text(json.dumps({"raw_seconds": dur, "out_seconds": total, "freezes": fz, "events": evs,
+    (d / "edit.json").write_text(json.dumps({"raw_seconds": dur, "out_seconds": total, "freezes": fz, "events": evs, "camera": keys,
                                              "clips": [{k: v for k, v in c.items() if k != "from_prev"} for c in timeline]},
                                             ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     contact_sheet(out, total, d / "sheet.png")

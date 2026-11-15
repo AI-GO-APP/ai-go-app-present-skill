@@ -31,6 +31,7 @@ export default async (v) => {
   await v.hold(1500);
 
   // ── 功能展示：一個功能一章，第二行寫「這能幫你做什麼」，每章 2～4 步、不教每個欄位 ──
+  //    錄的時候加 --dsf 1.8：後製會在每一步推近鏡頭到要操作的地方、做完拉回（references/video.md）
   // await v.chapter("AI 自動分類來信", "新來的信件自動標上類別，客服不用逐封判斷");
   // await v.go("/inbox", "收件匣每一封都標好類別");
   // await v.say("點類別就能只看這一類", T("退換貨", "button"));
