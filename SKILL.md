@@ -173,6 +173,7 @@ cp <skill>/templates/video.plan.example.mjs video.manual.plan.mjs        # 照 G
 node <skill>/scripts/record.mjs --config present.config.json --plan video.manual.plan.mjs --out video/manual
 python <skill>/scripts/video_post.py --dir video/manual --purpose 操作說明   # →「AI GO 租戶名 App名 操作說明 YYYYMMDD.mp4」＋ .srt
 #   → GV：看 video/manual/sheet.png（成片總表），字幕與畫面逐格對
+# 功能展示影片：錄的時候加 --dsf 1.8，後製 --purpose 功能展示 會自動推近鏡頭（每一步 zoom in、做完 zoom out，貝茲緩動）
 # 瀏覽器以外的畫面／computer use：scripts/record_desktop.py start → say（每個動作前）→ stop，再同樣跑 video_post.py
 ```
 
@@ -225,7 +226,8 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
 18. **影片格式由使用者選、網頁用腳本錄**：選了操作說明或功能展示才問格式（PDF／影片／兩者）。網頁一律用 `record.mjs`
     照計畫錄（可重跑、不佔桌面、節奏可控），`record_desktop.py` 只給瀏覽器以外的畫面或 computer use。分鏡經 G1 核准才錄；
     字幕一句一個動作、24 字內，說法和 PDF 一樣要有依據（G3）；只動測試資料、錄完還原；**GV 成片檢查**沒過不交付
-    （references/video.md）。
+    （references/video.md）。功能展示影片的鏡頭會動（每一步推近、做完拉回，貝茲緩動；錄影加 `--dsf 1.8`），
+    操作說明維持固定全景。
 
 ## 檔案
 
@@ -242,9 +244,9 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `scripts/itest.mjs` ＋ `itest_core.mjs` | 整合測試：冒煙／UI 巡檢／端到端案例執行、自動偵測（JS 例外、API 錯誤、技術字樣、錯誤提示、沒反應、卡載入）、問題截圖標框、重現、`--list` 列案例；產出 `itest/results.json` 與判讀檔 `review.json` |
 | `scripts/guide_kit.py` ＋ `guide.css` | 測試指引（A4 直式）：`Guide` 沿用 `Deck` 的截圖與元件，頁序固定（封面 → 目錄 → 測試準備 → 身分與帳號 → 怎麼執行 → 流程 → 權限檢查 → 判定標準 → 回報方式 → 總檢查清單 → 問題回報單 → 送出前確認），缺必填、密鑰會擋 |
-| `scripts/record.mjs` | 操作影片錄影（網頁）：照 `video.plan.mjs` 操作，假游標＋點擊圈＋逐字輸入，Chrome screencast 錄 1920×1080，記下每一步字幕的時間；租戶名與 App 名自動帶入 |
+| `scripts/record.mjs` ＋ `motion.mjs` | 操作影片錄影（網頁）：照 `video.plan.mjs` 操作，假游標（沿貝茲弧線移動）＋點擊圈＋逐字輸入，Chrome screencast 錄 1920×1080（功能展示用 `--dsf 1.8` 錄 2880×1620），記下每一步字幕的時間；租戶名與 App 名自動帶入 |
 | `scripts/record_desktop.py` | 操作影片錄影（桌面，退路）：ffmpeg 錄視窗／螢幕／區域，`say`／`did`／`chapter` 記字幕（Windows） |
-| `scripts/video_post.py` | 影片後製：快轉靜止與載入、每步前凍結到字幕讀完、片頭／章節／片尾字卡、燒入字幕與點擊圈、MP4 章節、SRT、成片總表；檔名規則 |
+| `scripts/video_post.py` ＋ `video_zoom.py` | 影片後製：快轉靜止與載入、每步前凍結到字幕讀完、片頭／章節／片尾字卡、燒入字幕與點擊圈、MP4 章節、SRT、成片總表；檔名規則。功能展示另外加鏡頭：每一步推近、做完拉回、同一區連續操作就橫移（`--zoom`、`--zoom-scale`） |
 | `scripts/progress.py` | 進度報告：組訊息（一週一則，對方有 AI 時上下兩段，可附圖）＋用語與安全檢查（標準函式庫） |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
