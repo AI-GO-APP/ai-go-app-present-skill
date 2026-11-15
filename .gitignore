@@ -12,3 +12,7 @@ preview/
 *.pdf
 deck.html
 itest/
+video/
+*.mp4
+*.mkv
+*.srt

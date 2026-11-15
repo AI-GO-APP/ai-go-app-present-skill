@@ -6,10 +6,11 @@ description: >
   or a test guideline for the client's testers
   （操作說明／操作手冊、教學文件、使用說明、交接簡報；進度報告、週報、交付通知、給客戶的說明、跟客戶說做好了；
   測試報告、驗收數據、準確度；功能展示、功能導覽、demo 簡報；整合測試、端到端測試、E2E、UI 全點一次、驗收測試、
-  QA、找 bug；測試指引、測試手冊、測試腳本、UAT、驗收測試文件、給客戶測試的文件、check list、回報方式）。
-  第一步一定先讓使用者選用途（六選、可多選、至少一種）：操作說明／測試報告／功能展示／整合測試產出
+  QA、找 bug；測試指引、測試手冊、測試腳本、UAT、驗收測試文件、給客戶測試的文件、check list、回報方式；
+  操作影片、教學影片、操作錄影、demo 影片、功能介紹影片、錄影、影片字幕）。
+  第一步一定先讓使用者選用途（六選、可多選、至少一種；操作說明／功能展示再選簡報 PDF、影片或兩者）：操作說明／測試報告／功能展示／整合測試產出
   16:9 閱讀式簡報 PDF（多選合成一份；整合測試會實際把每頁、每個 UI、每條流程點跑一次，通過的文字逐條列、
-  未通過與疑慮逐項截圖），測試指引產出 A4 可列印文件（不同身分、工作流程步驟、每步預期畫面、檢查清單、回報方式，
+  未通過與疑慮逐項截圖；操作說明與功能展示可改出或加出有字卡字幕的操作影片 MP4），測試指引產出 A4 可列印文件（不同身分、工作流程步驟、每步預期畫面、檢查清單、回報方式，
   給客戶的測試人員照著測），進度報告產出可直接貼給客戶的文字訊息（FDE 一週一則、週會前 48 小時）。
   含可重跑的截圖、測試、排版、渲染、訊息檢查腳本與提示詞。
 ---
@@ -20,20 +21,20 @@ description: >
 
 | 用途 | 產出 | 給誰、什麼時候 | 細節 |
 |---|---|---|---|
-| **操作說明** | 16:9 閱讀式簡報 PDF | 接手後台的人；最後交付 | 真實截圖、大功能全頁圖解、一個流程一頁、每個設定「情境 → 結果」 |
+| **操作說明** | 16:9 閱讀式簡報 PDF，**或／和操作影片 MP4** | 接手後台的人；最後交付 | 真實截圖、大功能全頁圖解、一個流程一頁、每個設定「情境 → 結果」；影片一條流程一章、每步字幕（references/video.md） |
 | **測試報告** | 同上（1～2 頁） | 客戶決策者；有既有測試數據時 | 只整理開發過程已有的測試數據（準確度、正確率），照來源抄 |
-| **功能展示** | 同上（約 5～10 頁） | 決策者、demo；不教操作 | 每個重點功能一頁：全頁截圖＋圖解＋一句「這能幫你做什麼」 |
+| **功能展示** | 同上（約 5～10 頁），**或／和操作影片 MP4** | 決策者、demo；不教操作 | 每個重點功能一頁：全頁截圖＋圖解＋一句「這能幫你做什麼」；影片一個功能一章、1～3 分鐘 |
 | **整合測試** | 同上（頁數看結果） | 專案負責人、驗收；交付前 | **這次實際跑**：每頁、每個可點 UI、每條端到端流程都點一次並判斷合不合理；通過的逐條文字、未通過與疑慮逐項截圖（references/integration-test.md） |
 | **測試指引** | A4 直式 PDF（可列印填寫） | 客戶端要動手測的人（店長、客服、QA）；交付測試／驗收前 | 不同身分與帳號、一條流程一頁（步驟＋**每步預期畫面**＋勾選）、權限檢查、判定標準、**回報方式**、總檢查清單與問題回報單（references/test-guide.md） |
 | **進度報告** | 文字訊息（可補附圖） | FDE 給客戶；一週一則、週會前 48 小時 | 這週做好了什麼、怎麼驗、要決定的事、何時回覆（references/progress-report.md） |
 
 16:9 簡報類（操作說明／測試報告／功能展示／整合測試）多選時**合成一份**，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明。
-測試指引是 A4 直式的**另一份** PDF，不合進簡報。
+測試指引是 A4 直式的**另一份** PDF，不合進簡報。操作影片**一個用途一支** MP4（1920×1080，片頭／章節／片尾字卡、燒入字幕、MP4 章節、同名 SRT）。
 
 **樣式固定為 AI GO 品牌 B2B 母版**（references/brand.md；測試指引同一套品牌、改 A4 直式）：深底封面押製作日、**封面後一定是目錄頁**、
 每頁左緣品牌藍條、全頁截圖包瀏覽器框、深底封底。**檔名固定為「AI GO 租戶名 App名 用途 YYYYMMDD」**（PDF 與 HTML 同名；用途照選的、依固定順序用「・」串，
 例：`AI GO 展示公司 訂單中心 功能展示・操作說明 20261004.pdf`、`AI GO 展示公司 訂單中心 整合測試 20261007.pdf`、
-`AI GO 展示公司 訂單中心 測試指引 20261102.pdf`；進度報告存檔也照這個規則）。
+`AI GO 展示公司 訂單中心 測試指引 20261102.pdf`、`AI GO 展示公司 訂單中心 操作說明 20261115.mp4`；進度報告存檔也照這個規則）。
 **交付的 PDF 是獨立檔案、小於 20 MB**：圖片與字型全部內嵌；超過就整份壓縮，壓到底仍超過要經使用者同意才交付。
 
 ## Phase -1：Skill 自我更新（每次觸發時執行，發現新版即強制同步）
@@ -75,11 +76,14 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
   2. 其他文件（單選）：**都不用／測試指引／進度報告／兩者都要**（測試指引＝A4 PDF；進度報告＝文字訊息）
   可以把從需求推測的那個標成建議，但要使用者自己選
 - 兩題合計**至少一種**；都沒選就不往下做
+- **選了操作說明或功能展示，接著問輸出格式**（選了哪個就問哪個，一次呼叫問完；prompts.md §0 第三題）：
+  **簡報 PDF／影片／兩者都要**。只選影片的用途不放進 `Deck(purposes=…)`；選了影片的照 references/video.md 做
 - 選完照下表走，選了幾種就做幾種：
 
 | 選了 | 接著做 |
 |---|---|
 | 操作說明／測試報告／功能展示（任一） | P0～P7（references/workflow.md）；`Deck(purposes=[…])` 傳入選的 PDF 類用途，合成一份 PDF |
+| 操作說明／功能展示的**影片**格式 | references/video.md：P0～P3 同上（大綱附分鏡，G1 一起核准）→ V1 錄影計畫 → V2 `scripts/record.mjs` 錄影 → V3 `scripts/video_post.py` 後製 → **GV 成片檢查** → V4 交付；一個用途一支 MP4 |
 | 整合測試 | IT0～IT7（references/integration-test.md）：範圍與安全 → 盤點 → 測試計畫（GT1）→ `scripts/itest.mjs` 執行 → 判讀（GT2）→ `d.itest()`；和其他 PDF 用途合成一份時共用 P6／P7 |
 | 測試指引 | TG0～TG6（references/test-guide.md）：範圍（讀者、測試站、身分與帳號、回報方式）→ 盤點身分與流程 → 大綱（GH1）→ 截預期畫面 → **照指引親自走一遍（GH2）** → `Guide` 輸出 A4 PDF |
 | 進度報告 | references/progress-report.md：問交付站連結與對方有沒有會用 AI 的人 → `scripts/progress.py` 產文字訊息 |
@@ -93,6 +97,7 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 - 「把準確度測試結果整理給客戶看」「做一份功能展示給老闆 demo」
 - 「交付前把整個 app 全部點過一遍」「跑一次整合測試／端到端測試，列出有問題的地方」
 - 「出一份測試指引給客戶的店長和客服測」「UAT 測試文件，要有 check list 跟回報方式」
+- 「錄一支操作教學影片」「做一支功能介紹的 demo 影片，要有字幕」
 - 介面改版後要重出手冊（工作資料夾還在就從 P4 重跑）
 
 不管哪一種說法，都先走 Phase 0 讓使用者選用途。
@@ -105,6 +110,7 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 | Google Chrome | 或設 `CHROME_PATH` |
 | Python 3 ＋ Pillow ＋ pypdf | 排版、總表、PDF 壓縮（`pip install pillow pypdf`） |
 | Ghostscript（選配） | 有的話 PDF 壓縮優先用它（`gs`／`gswin64c`），沒有就用 pypdf |
+| ffmpeg（影片才要） | `npm install` 會裝 `ffmpeg-static`（optional）；或 PATH 上的 ffmpeg、環境變數 `FFMPEG` |
 | 登入憑證 | runtime：`AIGO_EMAIL`／`AIGO_PASSWORD`（或 `AIGO_TOKEN`）；preview：`DEVPORTAL_PAT`。放環境變數或 `env_file`，**不要寫進任何 repo** |
 | app 原始碼 | 讀路由、欄位、後端行為（說法查證要用） |
 
@@ -160,6 +166,16 @@ node <skill>/scripts/render.mjs --html "AI GO 租戶名 App名 測試指引 YYYY
 python <skill>/scripts/contact_sheet.py "preview/p*.png" --cols 4 --rows 2 --cell 560x792 --out disc/pv --no-label   # G4
 ```
 
+操作影片（references/video.md；一支影片一個計畫檔）：
+
+```bash
+cp <skill>/templates/video.plan.example.mjs video.manual.plan.mjs        # 照 G1 核准的分鏡改
+node <skill>/scripts/record.mjs --config present.config.json --plan video.manual.plan.mjs --out video/manual
+python <skill>/scripts/video_post.py --dir video/manual --purpose 操作說明   # →「AI GO 租戶名 App名 操作說明 YYYYMMDD.mp4」＋ .srt
+#   → GV：看 video/manual/sheet.png（成片總表），字幕與畫面逐格對
+# 瀏覽器以外的畫面／computer use：scripts/record_desktop.py start → say（每個動作前）→ stop，再同樣跑 video_post.py
+```
+
 進度報告：
 
 ```bash
@@ -206,6 +222,10 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
     一定有不同身分（`roles()`）、一條流程一頁（每一步「操作｜預期畫面｜✓」）、回報方式（`report()`）、總檢查清單與問題回報單。
     每一步的預期畫面都要用該身分的測試帳號照著文件走過一遍確認（GH2），**不把從程式碼推測的、或有 bug 的行為寫成預期**；
     帳號只寫代碼、密碼私下給（`write()` 會擋）；回覆時效只寫 FDE 承諾得了的（references/test-guide.md）。
+18. **影片格式由使用者選、網頁用腳本錄**：選了操作說明或功能展示才問格式（PDF／影片／兩者）。網頁一律用 `record.mjs`
+    照計畫錄（可重跑、不佔桌面、節奏可控），`record_desktop.py` 只給瀏覽器以外的畫面或 computer use。分鏡經 G1 核准才錄；
+    字幕一句一個動作、24 字內，說法和 PDF 一樣要有依據（G3）；只動測試資料、錄完還原；**GV 成片檢查**沒過不交付
+    （references/video.md）。
 
 ## 檔案
 
@@ -222,10 +242,13 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
 | `scripts/contact_sheet.py` | 截圖／預覽總表 |
 | `scripts/itest.mjs` ＋ `itest_core.mjs` | 整合測試：冒煙／UI 巡檢／端到端案例執行、自動偵測（JS 例外、API 錯誤、技術字樣、錯誤提示、沒反應、卡載入）、問題截圖標框、重現、`--list` 列案例；產出 `itest/results.json` 與判讀檔 `review.json` |
 | `scripts/guide_kit.py` ＋ `guide.css` | 測試指引（A4 直式）：`Guide` 沿用 `Deck` 的截圖與元件，頁序固定（封面 → 目錄 → 測試準備 → 身分與帳號 → 怎麼執行 → 流程 → 權限檢查 → 判定標準 → 回報方式 → 總檢查清單 → 問題回報單 → 送出前確認），缺必填、密鑰會擋 |
+| `scripts/record.mjs` | 操作影片錄影（網頁）：照 `video.plan.mjs` 操作，假游標＋點擊圈＋逐字輸入，Chrome screencast 錄 1920×1080，記下每一步字幕的時間；租戶名與 App 名自動帶入 |
+| `scripts/record_desktop.py` | 操作影片錄影（桌面，退路）：ffmpeg 錄視窗／螢幕／區域，`say`／`did`／`chapter` 記字幕（Windows） |
+| `scripts/video_post.py` | 影片後製：快轉靜止與載入、每步前凍結到字幕讀完、片頭／章節／片尾字卡、燒入字幕與點擊圈、MP4 章節、SRT、成片總表；檔名規則 |
 | `scripts/progress.py` | 進度報告：組訊息（一週一則，對方有 AI 時上下兩段，可附圖）＋用語與安全檢查（標準函式庫） |
 | `scripts/check_update.py` | Skill 自我更新（Phase -1；零相依） |
 | `resources/hooks/` | SessionStart 更新檢查 hook 範本（Claude Code／Codex） |
-| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、進度報告輸入（`progress.example.json`）、整合測試計畫（`itest.plan.example.mjs`）與計畫提案（`itest.outline.example.md`）、測試指引內容（`guide_content.example.py`）與大綱提案（`guide.outline.example.md`） |
+| `templates/` | 設定檔、截圖計畫、簡報內容（11 種頁型）、大綱提案範本、進度報告輸入（`progress.example.json`）、整合測試計畫（`itest.plan.example.mjs`）與計畫提案（`itest.outline.example.md`）、測試指引內容（`guide_content.example.py`）與大綱提案（`guide.outline.example.md`）、錄影計畫（`video.plan.example.mjs`） |
 | `references/workflow.md` | 七階段與四道關卡 |
 | `references/brand.md` | AI GO 品牌規範（色彩、字體、幾何、固定頁、截圖框、檔名） |
 | `references/writing-guide.md` | 語氣、頁型、「情境 → 結果」寫法、說法查證 |
@@ -234,5 +257,6 @@ python <skill>/scripts/progress.py progress.json [--ui disc/ui.json] [--out "AI 
 | `references/prompts.md` | 需求確認、頁面盤點、參數效果、說法查證、截圖與簡報檢查、大綱提案、選用途、測試數據盤點、進度報告詢問、整合測試範圍／盤點／判讀、測試指引範圍／走一遍 |
 | `references/integration-test.md` | 整合測試：架構（四個測試層、自動偵測、合理性判讀）、IT0～IT7、案例 API、判讀檔、報告頁、安全規則 |
 | `references/test-guide.md` | 測試指引：和整合測試／操作說明的差別、TG0～TG6、頁序與 API、判定與統計 |
+| `references/video.md` | 操作影片：格式選擇、錄法（網頁腳本／桌面）、V1～V4、GV 成片檢查、字幕寫法、桌面錄影與 computer use |
 | `references/progress-report.md` | 進度報告：要問的兩件事、訊息格式、附圖、上下兩段、用語規則、安全規則 |
 | `references/pitfalls.md` | 實戰踩雷 |

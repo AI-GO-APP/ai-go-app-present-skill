@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>訂單中心 — AI GO</title>
+<style>
+  body { margin: 0; font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; background: #F3F5F8; color: #050E1F; }
+  header { background: #fff; padding: 18px 40px; border-bottom: 1px solid #E0E6EE; font-weight: 700; font-size: 22px; }
+  main { padding: 32px 40px; }
+  .bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+  button { font: inherit; padding: 10px 22px; border-radius: 8px; border: 0; background: #1F80FF; color: #fff; cursor: pointer; font-size: 17px; }
+  button.ghost { background: #fff; color: #1F80FF; border: 1px solid #1F80FF; }
+  input, select { font: inherit; font-size: 17px; padding: 9px 12px; border: 1px solid #C9D2DE; border-radius: 8px; width: 320px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 17px; }
+  th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid #EEF1F5; }
+  th { background: #E6F4FF; }
+  .modal { position: fixed; inset: 0; background: rgba(5,14,31,.45); display: none; align-items: center; justify-content: center; }
+  .modal.on { display: flex; }
+  .card { background: #fff; border-radius: 14px; padding: 28px 32px; width: 460px; }
+  .card h3 { margin: 0 0 18px; font-size: 22px; }
+  label { display: block; margin: 12px 0 6px; color: #5C626D; }
+  .row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+  .toast { position: fixed; right: 40px; bottom: 40px; background: #050E1F; color: #fff; padding: 14px 22px; border-radius: 10px; display: none; }
+  .spin { display: none; margin-left: 10px; color: #5C626D; }
+</style></head>
+<body>
+<header>訂單中心</header>
+<main>
+  <div class="bar"><button id="add">＋ 新增訂單</button><input id="q" placeholder="搜尋客戶名稱"><button class="ghost" id="find">查詢</button><span class="spin" id="spin">查詢中…</span></div>
+  <table><thead><tr><th>單號</th><th>客戶</th><th>品項</th><th>數量</th><th>狀態</th></tr></thead>
+  <tbody id="tb">
+    <tr><td>A-1001</td><td>好日子咖啡</td><td>拿鐵豆 1kg</td><td>3</td><td>已出貨</td></tr>
+    <tr><td>A-1002</td><td>青田書店</td><td>濾掛包 50 入</td><td>10</td><td>處理中</td></tr>
+  </tbody></table>
+</main>
+<div class="modal" id="m"><div class="card"><h3>新增訂單</h3>
+  <label>客戶名稱</label><input id="cust">
+  <label>品項</label><select id="item"><option>拿鐵豆 1kg</option><option>濾掛包 50 入</option><option>冷萃茶包</option></select>
+  <label>數量</label><input id="qty" type="number" value="1">
+  <div class="row"><button class="ghost" id="cancel">取消</button><button id="save">儲存</button></div>
+</div></div>
+<div class="toast" id="toast">已新增訂單</div>
+<script>
+  const $ = (s) => document.querySelector(s); let n = 1003;
+  $("#add").onclick = () => $("#m").classList.add("on");
+  $("#cancel").onclick = () => $("#m").classList.remove("on");
+  $("#save").onclick = () => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>A-${n++}</td><td>${$("#cust").value}</td><td>${$("#item").value}</td><td>${$("#qty").value}</td><td>處理中</td>`;
+    $("#tb").prepend(tr); $("#m").classList.remove("on");
+    $("#toast").style.display = "block"; setTimeout(() => $("#toast").style.display = "none", 2000);
+  };
+  $("#find").onclick = () => { $("#spin").style.display = "inline"; setTimeout(() => {
+    $("#spin").style.display = "none"; const q = $("#q").value;
+    [...$("#tb").rows].forEach((r) => r.style.display = r.cells[1].textContent.includes(q) ? "" : "none"); }, 5000); };
+</script>
+</body></html>

@@ -26,6 +26,25 @@
 ]}
 ```
 
+**第三題：輸出格式**（第一題選了操作說明或功能展示才問；兩個都選就一次呼叫問兩題，各自選）：
+
+```json
+{"questions": [
+  {"question": "操作說明要輸出成什麼？", "header": "操作說明", "multiSelect": false, "options": [
+    {"label": "簡報 PDF", "description": "16:9 閱讀式簡報：全頁圖解、一個流程一頁，適合查閱與列印"},
+    {"label": "影片", "description": "操作影片 MP4：一條流程一章、每一步有字幕，等待自動快轉，適合新人自學與轉傳"},
+    {"label": "兩者都要", "description": "同一份大綱，PDF 和影片都做"}
+  ]},
+  {"question": "功能展示要輸出成什麼？", "header": "功能展示", "multiSelect": false, "options": [
+    {"label": "簡報 PDF", "description": "每個重點功能一頁：全頁截圖＋一句能幫你做什麼"},
+    {"label": "影片", "description": "1～3 分鐘 demo 影片：一個功能一章，章節字卡寫能幫你做什麼"},
+    {"label": "兩者都要", "description": "PDF 和影片都做"}
+  ]}
+]}
+```
+
+選了影片的用途照 `video.md` 做（一個用途一支 MP4）；只選影片的用途不放進 `Deck(purposes=…)`。
+
 簡報 PDF（操作說明／測試報告／功能展示／整合測試）多選時合成一份，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明。
 測試指引是 A4 直式的另一份 PDF（`guide_kit.py`），進度報告是文字訊息（`progress.py`），都不合進簡報。
 
