@@ -59,11 +59,36 @@ def check_npm_deps(skill: Path = SKILL) -> dict:
     missing = [d for d in pkg.get("dependencies", {}) if not (skill / "node_modules" / d / "package.json").exists()]
     if missing:
         return {"ok": False, "detail": "還沒裝：" + "、".join(missing), "fix": fix}
-    lock, inst = skill / "package-lock.json", skill / "node_modules" / ".package-lock.json"
-    # skill 自動更新只換檔案、不重裝：lock 比已安裝的新＝依賴可能變了
-    if lock.exists() and inst.exists() and lock.stat().st_mtime > inst.stat().st_mtime + 1:
-        return {"ok": False, "detail": "skill 更新過，依賴可能變了", "fix": fix}
+    # skill 自動更新只換檔案、不重裝：lock 要的套件版本跟 node_modules 裝的不一樣＝該重裝。
+    # 比內容不比修改時間——git reset 會更新 lock 的時間，內容沒變也不該叫人重裝。
+    stale = _lock_drift(skill)
+    if stale:
+        return {"ok": False, "detail": "skill 更新過，這些套件要重裝：" + "、".join(stale[:5])
+                + ("…" if len(stale) > 5 else ""), "fix": fix}
     return {"ok": True, "detail": "puppeteer-core 已裝"}
+
+
+def _lock_drift(skill: Path) -> list[str]:
+    """package-lock.json 要的 vs node_modules/.package-lock.json 已裝的，回傳版本不符或沒裝的套件名。"""
+    def packages(p: Path) -> dict | None:
+        try:
+            return json.loads(p.read_text(encoding="utf-8")).get("packages") or {}
+        except (OSError, ValueError, AttributeError):
+            return None
+    want = packages(skill / "package-lock.json")
+    have = packages(skill / "node_modules" / ".package-lock.json")
+    if want is None or have is None:
+        return []  # 沒有 lock 可比：上面已確認直接依賴都在，就算過
+    drift = []
+    for key, meta in want.items():
+        if not key.startswith("node_modules/") or not isinstance(meta, dict):
+            continue
+        if meta.get("optional") or meta.get("dev"):
+            continue  # 其他平台的選配套件、開發用套件，沒裝是正常的
+        got = have.get(key)
+        if not isinstance(got, dict) or got.get("version") != meta.get("version"):
+            drift.append(key.rsplit("node_modules/", 1)[-1])
+    return drift
 
 
 def check_chrome() -> dict:

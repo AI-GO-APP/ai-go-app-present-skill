@@ -1,6 +1,6 @@
 {
   "name": "ai-go-app-present-skill",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "private": true,
   "type": "module",
   "description": "AI GO app 交付文件產生器：截圖、整合測試、測試指引、操作影片、排版、渲染",
