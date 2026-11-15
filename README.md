@@ -25,7 +25,13 @@ git clone https://github.com/AI-GO-APP/ai-go-app-present-skill.git .claude/skill
 cd .claude/skills/ai-go-app-present
 npm install            # puppeteer-core；ffmpeg-static（影片用，optional）
 pip install pillow pypdf   # 總表、PDF 壓縮（有 Ghostscript 會優先用它，選配）
+python scripts/doctor.py --video   # 檢查還缺什麼（macOS/Linux 用 python3）；缺的會印出安裝指令
 ```
+
+還需要 Google Chrome（或設 `CHROME_PATH`）與 Node 18+。不確定裝齊了沒，跑 `doctor.py` 就知道：
+✓ 齊了、✗ 缺（附用途與安裝指令）、－ 選配。skill 自動更新後若提示依賴有變，也是在 skill 目錄重跑 `npm install`。
+用 Claude Code 等 agent 時，agent 會在選完用途後自己跑這個檢查並引導你安裝；權限設定擋下 `npm install` 時，
+agent 會請你核准或自己執行。
 
 - Claude Code：放進 `.claude/skills/` 即可被觸發（說「幫 XX 做操作手冊」「這週的進度報告」「做份功能展示」「交付前跑一次整合測試」「出一份測試指引給客戶測」）
 - 其他 agent：把 `SKILL.md` 與 `references/` 加進 rules／context

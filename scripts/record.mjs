@@ -242,7 +242,8 @@ async function main() {
     "-vf", `fps=${FPS},scale=${W}:${H}:flags=lanczos,format=yuv420p`, "-c:v", "libx264", "-preset", "veryfast", "-crf", "14",
     "-g", String(FPS), path.join(outDir, "raw.mkv")], { cwd: frameDir, encoding: "utf8" });
   if (r.status !== 0) throw new Error("ffmpeg 組影片失敗：" + (r.stderr || r.error?.message || "").slice(-1500) +
-    `\n畫格留在 ${frameDir}（list.ffconcat）。skill 目錄 npm install 會裝 ffmpeg-static，或設 FFMPEG，再用 ffmpeg 組成 raw.mkv`);
+    `\n畫格留在 ${frameDir}（list.ffconcat）。skill 目錄 npm install 會裝 ffmpeg-static，或設 FFMPEG，再用 ffmpeg 組成 raw.mkv` +
+    "\n（錄影前先跑 python scripts/doctor.py --video，就不會錄完才發現缺 ffmpeg）");
   fs.writeFileSync(path.join(outDir, "session.json"), JSON.stringify({ ...sess, state: "done" }, null, 1));
   fs.rmSync(frameDir, { recursive: true, force: true });
   console.log(`錄影結束 ${path.join(outDir, "raw.mkv")}（${(stopTs - t0).toFixed(1)}s，${frames.length} 格，${events.filter((e) => e.kind === "step").length} 步）`);
