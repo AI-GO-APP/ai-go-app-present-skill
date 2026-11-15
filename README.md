@@ -4,14 +4,16 @@ AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先�
 
 | 用途 | 產出 |
 |---|---|
-| **操作說明** | 16:9 閱讀式簡報 PDF：真實後台截圖（全頁圖解＋局部操作）、一個流程一頁、每個設定「情境 → 結果」 |
+| **操作說明** | 16:9 閱讀式簡報 PDF：真實後台截圖（全頁圖解＋局部操作）、一個流程一頁、每個設定「情境 → 結果」；**也可以出操作影片 MP4**（或兩者都要） |
 | **測試指引** | A4 直式 PDF、可列印填寫：給客戶的測試人員照身分登入、照步驟操作；每條流程一頁（操作｜**預期畫面**｜✓）、權限檢查、判定標準（P／M／F／B／N）、**回報方式**、總檢查清單與問題回報單（[references/test-guide.md](references/test-guide.md)） |
 | **進度報告** | FDE 給客戶的文字訊息，一週一則、週會前 48 小時交：做好了什麼／連結／怎麼驗／要決定的事／何時回覆；可補附圖；自動擋掉開發用語與危險步驟；客戶有 AI 時分上下兩段（[references/progress-report.md](references/progress-report.md)） |
 | **測試報告** | PDF 1～2 頁：開發過程已有的測試數據（例：OCR 準確度），照來源抄 |
-| **功能展示** | PDF 約 5～10 頁：每個重點功能一頁，全頁截圖＋一句「這能幫你做什麼」，不教操作 |
+| **功能展示** | PDF 約 5～10 頁：每個重點功能一頁，全頁截圖＋一句「這能幫你做什麼」，不教操作；**也可以出 1～3 分鐘的 demo 影片** |
 | **整合測試** | PDF：實際把每一頁（冒煙）、每個可點 UI（巡檢）、每條核心流程（端到端）與表單驗證點跑一次，自動抓錯＋人工判讀合理性；通過的逐條文字、未通過與疑慮逐項截圖（[references/integration-test.md](references/integration-test.md)） |
 
 16:9 簡報類多選時合成一份，順序固定：功能展示 → 測試報告 → 整合測試 → 操作說明；測試指引是 A4 另一份。
+
+**操作影片**（操作說明／功能展示選了影片格式）：腳本照分鏡操作 app 並錄影（假游標、點擊圈、逐字輸入），後製自動快轉等待、每一步前停住讓字幕讀得完，加片頭／章節／片尾字卡、燒入字幕、MP4 章節與 SRT（[references/video.md](references/video.md)）。
 
 適用：客服後台、CRM、POS、ERP 等任何掛在 AI GO runtime 或 developer 預覽頁的 app。
 
@@ -21,7 +23,7 @@ AI GO custom app 交付文件的 Agent Skill。每次製作**第一步一定先�
 # 專案內（或 ~/.claude/skills/ 供全域使用）
 git clone https://github.com/AI-GO-APP/ai-go-app-present-skill.git .claude/skills/ai-go-app-present
 cd .claude/skills/ai-go-app-present
-npm install            # puppeteer-core
+npm install            # puppeteer-core；ffmpeg-static（影片用，optional）
 pip install pillow pypdf   # 總表、PDF 壓縮（有 Ghostscript 會優先用它，選配）
 ```
 

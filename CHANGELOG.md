@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.14.0 — 2026-11-15
+
+**行為變更**：選了操作說明或功能展示，Phase 0 多問一題「格式：簡報 PDF／影片／兩者都要」。只選影片的用途不放進
+`Deck(purposes=[…])`。其他用途、既有的 deck_content.py 都不受影響。
+
+### 新的交付格式：操作影片（MP4）
+
+操作說明與功能展示可以輸出成有字卡與字幕的 1920×1080 MP4（＋同名 SRT）。一個用途一支影片，不像 PDF 合成一份；
+操作說明一支 ≤ 10 分鐘（超過就拆，`--part`），功能展示 1～3 分鐘。
+
+- **`scripts/record.mjs`**（新，主要錄法）：沿用 `lib.mjs` 的登入與元素查找，照錄影計畫（`video.plan.mjs`）操作網頁，
+  用 Chrome screencast 錄 1920×1080（視窗 1600×900 × dsf 1.2）。畫面上有游標、點擊圈、逐字輸入；每一步的字幕時間精確到格。
+  計畫 API：`chapter`／`go`／`click`／`type`／`select`／`say`／`scroll`／`waitFor`／`hold`，spec 穿過 shadow DOM。
+  計畫中斷照樣存下錄到的部分並回傳 1
+- **`scripts/video_post.py`**（新，後製）：
+  - 太慢：靜止 > 1.2 秒壓成 0.6 秒；> 4 秒壓成 1.2 秒並標「快轉 ▶▶ 略過 N 秒」；一小塊轉圈的載入圖示也算靜止
+  - 太快：每一步前凍結「動作前」那一格 1～3 秒，字幕和藍圈先出現，依字數（`--cps`）讀得完才動
+  - 片頭（用途、App、租戶、製作日）→ 章節字卡（功能展示多一行「這能幫你做什麼」）→ 內容 → 片尾（AI GO、Urfit）
+  - 操作說明字幕帶步驟編號、功能展示不編號；MP4 內嵌章節；同名 SRT；`sheet.png` 成片總表（GV 用）
+  - 檔名照規則：`AI GO 租戶名 App名 操作說明 YYYYMMDD.mp4`（租戶名、App 名錄影時自動取得）
+- **`scripts/record_desktop.py`**（新，退路）：ffmpeg 錄桌面視窗／螢幕／區域，給瀏覽器以外的畫面或 computer use；
+  `say`（動作前）／`did`（動作後）／`chapter`／`stop`，後製自動對到畫面變化。目前只支援 Windows
+- **ffmpeg**：`npm install` 會裝 `ffmpeg-static`（optionalDependencies）；也可用 PATH 上的 ffmpeg 或環境變數 `FFMPEG`
+
+### 文件與範本
+
+新增 `references/video.md`（格式表、V1 計畫～V4 交付、字幕寫法、關卡 GV 成片檢查、桌面錄影）、
+`templates/video.plan.example.mjs`；`templates/outline.example.md` 加「影片分鏡」（G1 一起核准）；SKILL.md（description、
+用途總表、Phase 0 第三題、快速開始、核心原則 18、檔案表）、`prompts.md` §0、`workflow.md`、README。
+
+### 測試
+
+`tests/test_video.py`（檔名、錨點、靜止偵測與轉圈判斷、剪輯表與凍結時間、時間格式；有 ffmpeg 時跑合成影片 probe）、
+`tests/fixtures/video-demo.html`＋`video.plan.mjs`（端到端錄影用的示範頁）。
+
 ## 0.13.0 — 2026-11-02
 
 **行為變更**：Phase 0 第二題從「進度報告 要／不用」改成「其他文件：都不用／測試指引／進度報告／兩者都要」；
