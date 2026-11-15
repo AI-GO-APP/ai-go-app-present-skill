@@ -639,9 +639,11 @@ def main(argv: list[str] | None = None) -> int:
 
     deps = [r for r in acted if r["action"] == "synced" and r["deps_changed"]]
     if deps:
-        print("\n以下安裝的 npm 依賴有變動，使用腳本前必須先重裝（直接執行，不必徵詢）：")
+        print("\n以下安裝的 npm 依賴有變動，使用腳本前必須先重裝（直接執行，不必徵詢；"
+              "被權限擋下就請使用者核准或自己執行，不要繞過）：")
         for r in deps:
             print(f'  cd "{r["path"]}" && npm install')
+        print("裝完執行 doctor.py 確認環境：python scripts/doctor.py（影片加 --video）")
 
     if result.get("changelog"):
         print(f"\n變更摘要：\n{result['changelog']}\n")

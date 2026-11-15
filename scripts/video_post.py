@@ -79,7 +79,8 @@ def ffmpeg_bin() -> str:
     found = shutil.which("ffmpeg")
     if found:
         return found
-    raise SystemExit("找不到 ffmpeg：在 skill 目錄執行 npm install（會裝 ffmpeg-static），或安裝 ffmpeg、設環境變數 FFMPEG")
+    raise SystemExit("找不到 ffmpeg：在 skill 目錄執行 npm install（會裝 ffmpeg-static），或安裝 ffmpeg、設環境變數 FFMPEG。"
+                     "跑 python scripts/doctor.py --video 看還缺什麼")
 
 
 def pick_font() -> tuple[list[Path], str]:

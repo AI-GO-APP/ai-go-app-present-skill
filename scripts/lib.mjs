@@ -43,7 +43,7 @@ function loadPuppeteer(cfg) {
   for (const d of tries) {
     try { return createRequire(path.join(d, "package.json"))("puppeteer-core"); } catch { /* 下一個 */ }
   }
-  throw new Error("找不到 puppeteer-core：在 skill 目錄或工作目錄執行 npm install");
+  throw new Error("找不到 puppeteer-core：在 skill 目錄執行 npm install（跑 python scripts/doctor.py 看還缺什麼）");
 }
 
 function chromePath(cfg) {

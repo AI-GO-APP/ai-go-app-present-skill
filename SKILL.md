@@ -60,7 +60,9 @@ python <skill>/scripts/check_update.py     # macOS / Linux 用 python3
     就生效；把版本落差與變更摘要**告知**使用者（告知，不是徵詢——更新已完成，
     沒有拒絕的選項）。
   - **「npm 依賴有變動」**→ 在腳本列出的安裝目錄**直接執行 `npm install`**，再用截圖／渲染腳本。
-    不重裝的話 puppeteer-core 版本對不上，錯誤訊息通常不會指向真正原因。
+    不重裝的話 puppeteer-core 版本對不上、影片缺 ffmpeg，錯誤訊息通常不會指向真正原因。
+    **被 agent 的權限設定擋下時不要繞過**：告訴使用者這會裝什麼（puppeteer-core；影片用的 ffmpeg-static）、
+    為什麼要裝、在哪個目錄，請他核准或自己執行那行指令；裝完跑 `doctor.py` 確認。
   - **「失敗」**→ 把失敗原因與腳本印出的手動指令給使用者，請他們處理完再繼續。
     若同時有「破壞性變更」警語（`--json` 為 `"breaking": true`）：明確告訴使用者
     「不處理的話會遇到什麼」，後續遇到相關錯誤時**優先回頭懷疑版本落差**。
@@ -88,6 +90,19 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 | 測試指引 | TG0～TG6（references/test-guide.md）：範圍（讀者、測試站、身分與帳號、回報方式）→ 盤點身分與流程 → 大綱（GH1）→ 截預期畫面 → **照指引親自走一遍（GH2）** → `Guide` 輸出 A4 PDF |
 | 進度報告 | references/progress-report.md：問交付站連結與對方有沒有會用 AI 的人 → `scripts/progress.py` 產文字訊息 |
 
+**選完用途接著做環境檢查**（只選進度報告且不附圖時可略過）：
+
+```bash
+python <skill>/scripts/doctor.py           # 簡報 PDF／測試指引／整合測試
+python <skill>/scripts/doctor.py --video   # 有選影片格式
+```
+
+- 結束碼 0、最後一行「必要項目都齊了」→ 往下做
+- 有 ✗ → **先引導使用者裝好再開始**，不要做到一半才在截圖或錄影時失敗：把每個 ✗ 的「用途」與「安裝」那行
+  原樣告訴使用者（第一次用這個 skill 的人通常缺 `npm install` 或 ffmpeg）。`npm install`／`pip install` 這類
+  指令能由你執行就直接執行；被權限擋下就請使用者核准或自己執行，不要改用別的方法繞過。裝完再跑一次 doctor 確認
+- 缺「選配」（－）不用處理，也不用提
+
 `Deck` 沒給 `purposes` 會直接報錯；`purposes` 放了「進度報告」或「測試指引」也會報錯（進度報告不出 PDF；測試指引用 `guide_kit.Guide`）。
 
 ## 何時用
@@ -106,6 +121,7 @@ Phase -1 之後、做任何事之前，**一定先讓使用者選這次的用途
 
 | 項目 | 說明 |
 |---|---|
+| `scripts/doctor.py` | **一次檢查下面全部**，缺什麼就印出安裝指令（零相依，什麼都還沒裝也能跑） |
 | Node 18+ ＋ `npm install`（skill 目錄） | 裝 puppeteer-core；自我更新提示依賴有變時要重跑 |
 | Google Chrome | 或設 `CHROME_PATH` |
 | Python 3 ＋ Pillow ＋ pypdf | 排版、總表、PDF 壓縮（`pip install pillow pypdf`） |

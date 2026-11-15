@@ -90,6 +90,9 @@ spec 可以是 CSS 選擇器字串（取第一個），或截圖用的 spec 物�
 
 ### V2 錄影
 
+錄之前先確認有 ffmpeg：`python <skill>/scripts/doctor.py --video` 要全部 ✓。錄影會建真的測試資料，
+錄完才發現不能組片就得重錄、再建一次資料。
+
 ```bash
 node <skill>/scripts/record.mjs --config present.config.json --plan video.manual.plan.mjs --out video/manual
 node <skill>/scripts/record.mjs --config present.config.json --plan video.showcase.plan.mjs --out video/showcase --dsf 1.8

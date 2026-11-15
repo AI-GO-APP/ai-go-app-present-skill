@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.15.1 — 2026-11-15
+
+### 環境檢查與安裝引導
+
+- **`scripts/doctor.py`（新）**：一次檢查 Node 18+、npm 套件（puppeteer-core）、Chrome、Python 套件（pillow、pypdf）、
+  ffmpeg（`--video` 時必要）、Ghostscript（選配）；缺的印出用途與這台電腦適用的安裝指令，結束碼 1。
+  零相依，什麼都還沒裝也能跑；skill 自動更新換了 `package-lock.json` 但沒重裝時也會抓到
+- **SKILL.md**：選完用途接著跑 doctor，缺東西先引導使用者裝好再開始，不要做到一半才失敗；
+  `npm install` 被 agent 權限擋下時請使用者核准或自己執行，不繞過
+- `check_update.py` 提示依賴有變時，同樣說明被擋下怎麼辦，並提示裝完跑 doctor
+- 找不到 puppeteer-core／ffmpeg 的錯誤訊息都指向 doctor；`references/video.md` 錄影前先跑 `doctor.py --video`
+- `package-lock.json` 補上 0.14.0 加的 `ffmpeg-static`（之前沒同步）
+
+### 測試
+
+`tests/test_doctor.py`（npm 套件未裝／已裝／過期、ffmpeg 尋找順序與安裝提示、ffmpeg 只在影片時必要）
+
 ## 0.15.0 — 2026-11-15
 
 **行為變更**：功能展示影片的鏡頭預設會動（推近／拉回）；錄功能展示時建議加 `--dsf 1.8`。操作說明影片維持固定全景。
