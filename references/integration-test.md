@@ -138,7 +138,7 @@ node <skill>/scripts/itest.mjs --config present.config.json e2e form        # �
 | `c.allow(422, "請輸入名稱")` | 放行預期中的 HTTP 狀態或畫面字 |
 | `c.api(path, { method, body })` | 用同一個登入身分打平台 API，核對後端資料 |
 | `c.acceptDialogs()` | 原生 confirm 按確定（預設取消） |
-| `c.get`、`c.run`、`c.p`、`c.T`、`c.F`… | 同 `lib.mjs` session |
+| `c.get`、`c.run`、`c.p`、`c.T`、`c.F`… | 同 `lib.mjs` session。`c.run` 裡的 `root` 是 shadow root 時**沒有 `innerText`**（是 `undefined`），讀整頁文字要用 `root.textContent`，否則「畫面有沒有某字」的檢查永遠是假、反向檢查永遠通過 |
 
 ## IT5 判讀 → GT2
 
