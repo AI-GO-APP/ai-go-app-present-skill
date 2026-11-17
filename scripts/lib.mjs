@@ -87,6 +87,7 @@ export const ROOT = `(() => { const h = [...document.querySelectorAll("div")].fi
  */
 const FIND = `function __find(s, scope) {
   const norm = (t) => (t || "").replace(/\\s+/g, " ").trim();
+  if (typeof s === "string") s = { sel: s };
   scope = scope || ${ROOT};
   if (s.within) { scope = __find(s.within, scope); if (!scope) return null; }
   let els = [...scope.querySelectorAll(s.sel || "*")];
